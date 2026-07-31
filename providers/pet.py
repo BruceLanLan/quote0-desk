@@ -21,8 +21,8 @@ from datetime import datetime
 STATE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "pet_state.json")
 
 DEFAULT_REPOS = [
-    "/Users/bruce/dev/quote0-desk",
-    "/Users/bruce/dev/pocket-prophet-dashboard",
+    os.path.expanduser("~/dev/quote0-desk"),
+    os.path.expanduser("~/dev/pocket-prophet-dashboard"),
 ]
 
 SPECIES = "duck"  # v1 先固定一种造型，选宠物是后续功能，不在这次范围内

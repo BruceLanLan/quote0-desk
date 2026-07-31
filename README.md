@@ -88,15 +88,32 @@ quote0-desk/
 （`interval.powerMs`）已调到官方上限（12 小时）来避免它在没推送的间隙自己
 把画面转走，节奏完全交给这边控制（编排/调度落在 M6，见下）。
 
+## 调度器（M6）
+
+`scheduler.py` 是个后台 daemon 线程，按 `config.json` 的 `auto_push_interval_minutes`
+周期轮换推送 `auto_push_cards` 列表里的卡（不含 `qiantong`/`counter`，那些是
+NFC 触发的，不参与自动轮换）。默认关闭，需要显式布防：
+
+```bash
+python3 cli.py auto-cards proverb status todo capsule beacon liuyao qimen pet
+python3 cli.py arm            # 打开自动轮换
+python3 cli.py disarm         # 关闭
+python3 server.py             # 常驻运行，调度线程随 Flask 一起启动
+```
+
+也可以直接打 `GET/POST /settings` 查看或改这三项配置（`auto_push_enabled` /
+`auto_push_interval_minutes` / `auto_push_cards`）。
+
 ## 状态
 
-M0（真机契约验证）到 M5（屏上宠物）已完成，见 `docs/DEVICE-FACTS.md` 的实测记录。
-剩 M6：调度器（按槽轮换多张卡）、隐私审查（发布前扫描序列号/密钥/路径）。
+M0（真机契约验证）到 M6（调度器 + 隐私审查）已完成，见 `docs/DEVICE-FACTS.md`
+的实测记录。
 
 NFC 的 `link` 语义（贴一下打开的是否确实是"当前内容"绑定的 URL，而非固定地址）
 是本项目的立足点假设，仍待用户真机验证——这条不成立，闭环概念就要重新讨论。
 
 ## 仓库状态
 
-当前私有。API Key 和设备序列号一律走环境变量，不落库；发布前会走一遍隐私
-审查（`docs/DEVICE-FACTS.md` 里有提醒清单）。
+当前私有。API Key 和设备序列号一律走环境变量/占位符，不落库；`docs/DEVICE-FACTS.md`
+的隐私审查记录一节有本次 `git grep` 扫描结果。计划做完、真机验证过 NFC 闭环后
+再决定是否公开。

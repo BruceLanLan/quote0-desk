@@ -11,10 +11,11 @@ M2 最小可用：`/t/<action>` 路由，贴一下手机 → 打这个 URL → �
 """
 import logging
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 import config
 import dot
+import scheduler
 from canvas.template import simple_card, simple_data
 from providers.todo import toggle_done
 from push import push_card
@@ -37,7 +38,35 @@ def _push_counter():
 
 @app.route("/")
 def index():
-    return jsonify({"ok": True, "service": "quote0-desk", "counter": _counter_state["n"]})
+    return jsonify({"ok": True, "service": "quote0-desk", "counter": _counter_state["n"],
+                     "scheduler": scheduler.get_state()})
+
+
+@app.route("/settings", methods=["GET", "POST"])
+def settings():
+    """调度器设置：布防开关 / 轮换间隔 / 参与轮换的卡列表。默认未布防，
+    见 scheduler.py 顶部注释——不要在这里改成默认开启。
+    """
+    if request.method == "GET":
+        cfg = config.load()
+        return jsonify({
+            "auto_push_enabled": cfg.get("auto_push_enabled", False),
+            "auto_push_interval_minutes": cfg.get("auto_push_interval_minutes", 10),
+            "auto_push_cards": cfg.get("auto_push_cards", []),
+            "scheduler_state": scheduler.get_state(),
+        })
+
+    body = request.get_json(force=True, silent=True) or {}
+    updates = {}
+    if "auto_push_enabled" in body:
+        updates["auto_push_enabled"] = bool(body["auto_push_enabled"])
+    if "auto_push_interval_minutes" in body:
+        updates["auto_push_interval_minutes"] = max(scheduler.MIN_INTERVAL_MINUTES,
+                                                      int(body["auto_push_interval_minutes"]))
+    if "auto_push_cards" in body:
+        updates["auto_push_cards"] = list(body["auto_push_cards"])
+    cfg = config.update(**updates)
+    return jsonify({"ok": True, "config": cfg})
 
 
 @app.route("/t/counter_tap", methods=["GET", "POST"])
@@ -98,4 +127,5 @@ def t_ping():
 
 
 if __name__ == "__main__":
+    scheduler.start()
     app.run(host="0.0.0.0", port=5252, debug=False)
