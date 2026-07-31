@@ -23,9 +23,11 @@ DARK_GRAY = 96
 WHITE = 255
 
 FONT_PATH = "/System/Library/Fonts/STHeiti Medium.ttc"
+MONO_FONT_PATH = "/System/Library/Fonts/Menlo.ttc"  # ASCII 宠物造型要求等宽，不能用中文字体画
 MIN_FONT_SIZE = 12  # docs/DEVICE-FACTS.md P5：10px 发糊，12px 清晰
 
 _font_cache = {}
+_mono_font_cache = {}
 
 
 def font(size: int) -> ImageFont.FreeTypeFont:
@@ -34,6 +36,14 @@ def font(size: int) -> ImageFont.FreeTypeFont:
     if size not in _font_cache:
         _font_cache[size] = ImageFont.truetype(FONT_PATH, size)
     return _font_cache[size]
+
+
+def mono_font(size: int) -> ImageFont.FreeTypeFont:
+    """等宽字体，专给 ASCII 宠物造型用——中文字体画拉丁字符不保证等宽，
+    画出来爻线以外的 ASCII 美术会走形。"""
+    if size not in _mono_font_cache:
+        _mono_font_cache[size] = ImageFont.truetype(MONO_FONT_PATH, size)
+    return _mono_font_cache[size]
 
 
 def new_canvas(bg=WHITE) -> Image.Image:

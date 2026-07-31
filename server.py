@@ -76,6 +76,17 @@ def t_qiantong():
     return jsonify({"push": result})
 
 
+@app.route("/t/pet_pat", methods=["GET", "POST"])
+def t_pet_pat():
+    """摸摸宠物：贴一下触发一次性精神反应，不影响饥饿值（真正的喂食靠
+    commit 触发，见 providers/pet.py）。"""
+    from providers.pet import pat
+    state = pat()
+    result = push_card("pet")
+    log.info("pet_pat -> mood=%s push=%s", state["mood"], result)
+    return jsonify({"state": state, "push": result})
+
+
 @app.route("/t/ping")
 def t_ping():
     """M0-P2/P3 探测用：贴一下只记录一次命中，不推送，用来先确认 NFC
