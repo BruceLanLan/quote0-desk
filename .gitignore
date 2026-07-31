@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+config.json
+.env
+history/
+*.log
+.DS_Store
+snapshot.png
+data/todo.json
+data/proverb_state.json
+data/capsule_cache.json
