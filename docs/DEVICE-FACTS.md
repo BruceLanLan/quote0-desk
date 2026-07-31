@@ -128,9 +128,16 @@ liuyao/qimen 的 `build()`，不用单独测。
 - P2：NFC 贴一下打开的是否是当前显示内容的 `link`（**项目立足点，最高优先级**，需用户配合真机贴一下）
 - P3：`link` 支持哪些 scheme（局域网 http / 公网 https / `shortcuts://`，需用户配合）
 
-## ⚠️ 隐私提醒（M6 前必须处理）
+## 隐私审查记录（M6，2026-07-31）
 
-这份文档和 `scripts/_m0_shots/` 里的截图 URL 都含有真实设备序列号
-`<DEVICE_SERIAL>`。序列号等价于"知道就能对这台设备写内容"的地址，
-公开仓库前必须整份替换成占位符（留给 M6 统一处理，避免边写文档边改，
-来回返工）。
+`git grep` 对照仓库根目录（`/Users/bruce/dev/quote0-desk`，确认不是误扫到
+`~` 那个大仓库）跑了一遍：
+
+- API Key（`dot_web_`/`dot_app_` 前缀）：未出现在任何跟踪文件里，本来就只经环境变量。
+- 设备序列号：本文档、`scripts/m0_probe.py` 里的实际序列号已替换成占位符
+  `<DEVICE_SERIAL>` / `<你的设备序列号>`。
+- 用户名路径：`providers/beacon.py`、`capsule.py`、`pet.py` 里硬编码的
+  `/Users/bruce/...` 已改成 `os.path.expanduser("~/...")`，不再落死用户名。
+
+`scripts/_m0_shots/` 下的截图和文件名本身都不含序列号，CDN 渲染 URL
+（含序列号路径段）没有被写进任何跟踪文件，`git grep` 确认为空。

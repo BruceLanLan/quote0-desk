@@ -44,7 +44,7 @@ def _parse_ts(ts_str):
 
 def _project_name_from_file(path: str) -> str:
     """转录文件目录名是把完整路径的 `/` 换成 `-` 拼出来的（比如
-    `/Users/bruce/dev/quote0-desk` 会变成 `-Users-bruce-dev-quote0-desk`），
+    `/Users/you/dev/quote0-desk` 会变成 `-Users-you-dev-quote0-desk`），
     项目名本身如果带连字符（`quote0-desk`）就没法从这个字符串可靠切分回来。
 
     转录文件每一行其实都带 `cwd` 字段，是真实路径，取 basename 才准——

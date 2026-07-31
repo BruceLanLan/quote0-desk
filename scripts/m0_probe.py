@@ -6,7 +6,7 @@ P2/P3（NFC 语义、link scheme）需要用户物理贴手机确认，不在这
 
 用法：
   export DOT_API_KEY=dot_xxx...
-  export DOT_DEVICE_ID=<DEVICE_SERIAL>
+  export DOT_DEVICE_ID=<你的设备序列号>  # 只有一台设备时也可以不填，自动发现
   python3 scripts/m0_probe.py p1   # 或 p4 / p5 / p6 / p7 / all
 """
 import sys

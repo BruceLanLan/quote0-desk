@@ -7,12 +7,13 @@ message。找不到就老实说找不到，不编造。
 """
 from __future__ import annotations
 
+import os
 import subprocess
 from datetime import datetime, timedelta
 
 DEFAULT_REPOS = [
-    "/Users/bruce/dev/quote0-desk",
-    "/Users/bruce/dev/pocket-prophet-dashboard",
+    os.path.expanduser("~/dev/quote0-desk"),
+    os.path.expanduser("~/dev/pocket-prophet-dashboard"),
 ]
 
 # 候选回溯窗口，按"更有纪念意义"优先：一年前 > 一个月前 > 一周前

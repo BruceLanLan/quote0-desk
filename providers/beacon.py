@@ -18,8 +18,8 @@ import json
 import os
 import time
 
-LIGHTER_SCALPER_DIR = "/Users/bruce/lighter-scalper"
-STOCK_RADAR_DIR = "/Users/bruce/dev/stock-radar"
+LIGHTER_SCALPER_DIR = os.path.expanduser("~/lighter-scalper")
+STOCK_RADAR_DIR = os.path.expanduser("~/dev/stock-radar")
 
 STALE_AFTER_HOURS = 24  # 超过这个时长没新日志，就不算"运行中"
 
