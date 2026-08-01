@@ -77,10 +77,23 @@ sleep: enabled, 02:00–09:00
   显示什么"，但**不等价于"我最近一次推送的内容"**——中间可能被自主轮转覆盖掉了。
   开发期用它核对渲染效果时，必须在推送后的几秒内立刻查询，不能拖。
 
-**另一个待查疑点（未验证，不要假设）：** 加入 TEXT_API/CANVAS_API 槽位后，
-`loop/list` 里原本两个 `GENERAL` 天气槽只剩一个（`5fq8SKUbjmyF` 带地理位置的
-那个不见了）。不确定是槽位数量有上限被顶掉、还是巧合的时序问题，需要用户
-去 App 内容工坊核实一下天气卡是否还在。
+### 疑似 loop 槽位数量上限为 3（2026-08-01 新证据，仍未 100% 确认）
+
+之前记录过一次"加 TEXT_API/CANVAS_API 后一个 GENERAL 天气槽消失"，当时不
+确定是槽位上限还是巧合。今天加了 IMAGE_API 槽（用户在内容工坊操作）之后，
+`GET /loop/list` 显示只剩 3 项：`IMAGE_API` + `TEXT_API` + 1 个 `GENERAL`，
+**`CANVAS_API` 槽整个消失了**——推 `status` 卡直接收到跟"槽不存在"一模一样
+的 404："循环任务中未找到画板 API 内容"。`GET /fixed/list` 为空，不是转移
+到了 fixed 列表。
+
+两次独立观察都是"加一个新槽，另一个槽被顶掉，总数维持在 3"，指向**账号/
+设备的 loop 槽位可能存在上限（大概率是 3）**，不是我们代码或推送逻辑的
+问题——`push_card("status")` 走的还是原来验证过的 Canvas API 路径。
+
+**对架构的影响：** proverb/status/todo/capsule/beacon 这 5 张 Canvas 卡
+现在推不上去，直到内容工坊里重新腾出一个槽给 Canvas API（可能要去掉那个
+`GENERAL` 天气槽，或者上限本身有办法调，需要用户去 App 里确认）。这不是
+"待验证细节"，是当前会阻塞 5 张卡的真实事实，排优先级应该在两张一起处理。
 
 ## P5：296×152 横屏中文可读字号下限（已确认，2026-07-31）
 
@@ -138,6 +151,11 @@ liuyao/qimen 的 `build()`，不用单独测。
   `<DEVICE_SERIAL>` / `<你的设备序列号>`。
 - 用户名路径：`providers/beacon.py`、`capsule.py`、`pet.py` 里硬编码的
   `/Users/bruce/...` 已改成 `os.path.expanduser("~/...")`，不再落死用户名。
+- 新增 `providers/claude_quota.py`（2026-08-01）引入了另一类凭据——Claude
+  Code 自己的 OAuth accessToken（读 `~/.claude/.credentials.json`，只读
+  不回写）。这个 token 不经过 config.json，也不打印/不落日志，`git grep`
+  加了 `sk-ant-oat` 前缀和 `accessToken"\s*:\s*"...` 字面量两个新 pattern，
+  确认干净。
 
 `scripts/_m0_shots/` 下的截图和文件名本身都不含序列号，CDN 渲染 URL
 （含序列号路径段）没有被写进任何跟踪文件，`git grep` 确认为空。
