@@ -27,10 +27,11 @@ python3 cli.py set-todo "今天要做的事"
 ```
 
 **关键前提**：Quote/0 的官方 API 只能"更新" Dot App「内容工坊」里预先建好的
-内容槽，不能凭空创建新内容项。所以设备侧至少要在内容工坊里加好三类内容槽
-（**文本 API**、**画板 API**、**图片 API**）挂到设备循环任务里，代码这边才有
-地方可推。加好之后不用告诉这边具体的 key——`GET /loop/list` 会自动发现，
-按 `type` 字段区分。详见 `docs/DEVICE-FACTS.md` 的槽模型一节。
+内容槽，不能凭空创建新内容项，而且**账号的 loop 槽位有硬上限（3 个）**。
+本项目实际能用的是其中 2 个：**文本 API**（Text）+ **图片 API**（Image），
+第 3 个槽由用户自己留给官方内容，Canvas API 已经不在架构里（详见
+`docs/DEVICE-FACTS.md` 08-01 那节的重写说明）。内容工坊加好槽之后不用
+告诉这边具体的 key——`GET /loop/list` 会自动发现，按 `type` 字段区分。
 
 ## NFC 回调服务
 
@@ -66,7 +67,7 @@ python3 server.py   # Flask，默认监听 0.0.0.0:5252
 | 时间胶囊 | `push capsule` | 本机 git 仓库历史里"一年前/一个月前/一周前的今天"提交 |
 | 实盘信标 | `push beacon` | 只读展示 lighter-scalper 持仓 + stock-radar 最新信号，不导入其代码/密钥 |
 
-日课/时辰盘（干支排盘 Canvas 卡）计划中但尚未实现。
+日课/时辰盘（干支排盘卡）计划中但尚未实现。
 
 ## 架构
 
@@ -74,19 +75,23 @@ python3 server.py   # Flask，默认监听 0.0.0.0:5252
 quote0-desk/
   dot.py            # 官方 REST API 薄客户端：devices/status/settings/text/image/canvas
   config.py         # 配置读写；API Key 只认环境变量，绝不落 config.json
-  cards/            # 内容源：build() → {"data"/"window_data", ...} 走 Canvas，或 {"png", ...} 走 Image
-  canvas/            # Canvas JSON 模板（296×152 横屏专用）
+  cards/            # 内容源：build() → {"data", ...} 走 Text API，或 {"png", ...} 走 Image API
+  canvas/            # 文本卡的数据形状（title/message/footer 三段式，喂给 Text API）
   render/            # 需要逐像素控制的卡（爻线、九宫格、ASCII 宠物）本地 PIL 渲染
   providers/         # 纯数据逻辑，不碰渲染/推送
   server.py          # Flask：NFC 回调 /t/<action>
   push.py            # cli.py 和 server.py 共用的"按卡名推送"逻辑
 ```
 
-设备只给了 1 个画板槽（Canvas）+ 1 个图片槽（Image），但内容卡有 9 张。
-架构上不是"每张卡一个槽"，而是**同一个槽被不同卡分时复用**——由服务这边
-的调度决定当前该显示哪张卡，设备侧只是被动接受更新。设备原生的自动轮转
+设备只给了 2 个能用的槽（**Text API** + **Image API**，第 3 个槽上限被
+用户自留的官方内容占了，Canvas API 已经出局），但内容卡有 9 张。架构上
+不是"每张卡一个槽"，而是**同一个槽被不同卡分时复用**——由服务这边的调度
+决定当前该显示哪张卡，设备侧只是被动接受更新。设备原生的自动轮转
 （`interval.powerMs`）已调到官方上限（12 小时）来避免它在没推送的间隙自己
 把画面转走，节奏完全交给这边控制（编排/调度落在 M6，见下）。
+
+槽位数量限制的是"同时能露出几张脸"，不限制卡的总数——加第 10 张卡不花
+任何槽位成本，调度器照样轮。
 
 ## 调度器（M6）
 

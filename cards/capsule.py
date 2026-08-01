@@ -2,7 +2,7 @@
 配了 remote，M2 打通后再接；本地 git log 本身没有 commit hash 的公开 URL
 就不强行拼一个）。
 """
-from canvas.template import simple_card, simple_data
+from canvas.template import simple_data
 from providers.capsule import fetch
 
 
@@ -18,6 +18,4 @@ def build() -> dict:
         footer = ""
 
     data = simple_data(title=title, message=message, footer=footer)
-    window_data = simple_card(title=title, message=message, footer=footer,
-                               title_size=18, message_size=14)
-    return {"data": data, "window_data": window_data, "alias": "时间胶囊", "link": ""}
+    return {"data": data, "alias": "时间胶囊", "link": ""}

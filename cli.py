@@ -15,14 +15,12 @@ import sys
 import requests
 
 import dot
-from canvas.template import simple_card, simple_data
 
 
 def cmd_hello():
     d = dot.resolve_device_id()
-    window_data = simple_card(title="quote0-desk", message="M1 骨架打通", footer="Hello Quote/0")
-    data = simple_data(title="quote0-desk", message="M1 骨架打通", footer="Hello Quote/0")
-    r = dot.push_canvas(d, data=data, window_data=window_data, refresh_now=True, task_alias="M1 hello")
+    r = dot.push_text(d, title="quote0-desk", message="M1 骨架打通", signature="Hello Quote/0",
+                       refresh_now=True, task_alias="M1 hello")
     print(r)
     if r["ok"]:
         cmd_snapshot()

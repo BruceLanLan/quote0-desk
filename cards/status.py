@@ -7,7 +7,7 @@
 """
 from __future__ import annotations
 
-from canvas.template import simple_card, simple_data
+from canvas.template import simple_data
 from providers.claude_activity import scan
 from providers.claude_quota import fetch as fetch_quota
 
@@ -36,6 +36,4 @@ def build() -> dict:
     footer = "quote0-desk · Claude Code 状态灯"
 
     data = simple_data(title=title, message=message, footer=footer)
-    window_data = simple_card(title=title, message=message, footer=footer,
-                               title_size=20, message_size=14, footer_size=11)
-    return {"data": data, "window_data": window_data, "alias": "状态灯", "link": ""}
+    return {"data": data, "alias": "状态灯", "link": ""}
