@@ -2,7 +2,7 @@
 的 /t/proverb_next）。"""
 from datetime import datetime
 
-from canvas.template import simple_card, simple_data
+from canvas.template import simple_data
 from providers.proverb import current
 
 
@@ -12,6 +12,4 @@ def build() -> dict:
     footer = datetime.now().strftime("%m-%d %H:%M") + "　贴一下换一句"
 
     data = simple_data(title=title, message=text, footer=footer)
-    window_data = simple_card(title=title, message=text, footer=footer,
-                               title_size=16, message_size=20, footer_size=12)
-    return {"data": data, "window_data": window_data, "alias": "箴言机", "link": ""}
+    return {"data": data, "alias": "箴言机", "link": ""}

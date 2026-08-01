@@ -1,7 +1,7 @@
 """实盘信标卡：lighter-scalper 持仓状态 + stock-radar 最新信号，只读展示。"""
 from datetime import datetime, timezone
 
-from canvas.template import simple_card, simple_data
+from canvas.template import simple_data
 from providers.beacon import fetch
 
 
@@ -40,6 +40,4 @@ def build() -> dict:
     footer = datetime.now().strftime("%m-%d %H:%M 更新")
 
     data = simple_data(title=title, message=message, footer=footer)
-    window_data = simple_card(title=title, message=message, footer=footer,
-                               title_size=18, message_size=13, footer_size=12)
-    return {"data": data, "window_data": window_data, "alias": "实盘信标", "link": ""}
+    return {"data": data, "alias": "实盘信标", "link": ""}

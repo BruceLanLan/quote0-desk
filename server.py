@@ -16,7 +16,6 @@ from flask import Flask, jsonify, request
 import config
 import dot
 import scheduler
-from canvas.template import simple_card, simple_data
 from providers.todo import toggle_done
 from push import push_card
 
@@ -31,9 +30,8 @@ _counter_state = {"n": 0}
 def _push_counter():
     d = dot.resolve_device_id()
     n = _counter_state["n"]
-    window_data = simple_card(title=f"{n}", message="贴一下 +1", footer="quote0-desk · NFC 计数器")
-    data = simple_data(title=str(n), message="贴一下 +1", footer="quote0-desk · NFC 计数器")
-    return dot.push_canvas(d, data=data, window_data=window_data, refresh_now=True, task_alias="NFC 计数器")
+    return dot.push_text(d, title=str(n), message="贴一下 +1", signature="quote0-desk · NFC 计数器",
+                          refresh_now=True, task_alias="NFC 计数器")
 
 
 @app.route("/")
