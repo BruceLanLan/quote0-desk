@@ -7,10 +7,13 @@
 import secrets
 
 from cards import liuyao, qimen
+from config import nfc_base_url
 
 
 def build() -> dict:
     which = secrets.choice([liuyao, qimen])
     result = which.build()
     result["alias"] = f"签筒·{result['alias']}"
+    base = nfc_base_url()
+    result["link"] = f"{base}/t/qiantong" if base else ""
     return result

@@ -3,6 +3,7 @@
 from datetime import datetime
 
 from canvas.template import simple_data
+from config import nfc_base_url
 from providers.proverb import current
 
 
@@ -10,6 +11,8 @@ def build() -> dict:
     text = current()
     title = "箴言机"
     footer = datetime.now().strftime("%m-%d %H:%M") + "　贴一下换一句"
+    base = nfc_base_url()
+    link = f"{base}/t/proverb_next" if base else ""
 
     data = simple_data(title=title, message=text, footer=footer)
-    return {"data": data, "alias": "箴言机", "link": ""}
+    return {"data": data, "alias": "箴言机", "link": link}
