@@ -14,6 +14,7 @@ CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
 
 DEFAULTS = {
     "device_id": "",  # 留空则启动时用 GET /devices 自动发现（前提：账号下只有一台）
+    "nfc_base_url": "",  # NFC 回调服务的可达地址，例：http://<LAN_IP>:5252（局域网 IP 会变，改这一处，不用逐张卡改）
     "weather_city": "深圳",
     "enabled_cards": ["proverb"],  # 陆续加入 daily/liuyao/qimen/status/pet/todo/capsule/beacon
     # 箴言机成本闸（docs/PLAN 的教训：不能"刷一次屏调一次模型"）：
@@ -74,3 +75,20 @@ def device_id() -> str:
     if cfg_id:
         return cfg_id
     raise RuntimeError("未配置设备序列号，且未走自动发现。")
+
+
+def nfc_base_url() -> str:
+    """NFC 回调服务的可达地址（局域网 IP:port 或公网地址），不含末尾斜杠。
+
+    这一处是 2026-08-04 真机测试踩过坑之后加的：之前每张卡的 link 各自
+    硬编码或干脆留空（"M2 阶段再填" 的 TODO 一直没人填），加上局域网 IP
+    换了没同步更新，导致 NFC 贴一下要么打开死链接、要么直接没有 link 可点。
+    改成从这一个配置读，局域网 IP 变了只改这一处，所有卡的 link 跟着更新。
+
+    留空不是报错条件——很多卡（状态灯、时间胶囊、信标）本来就不需要 NFC
+    交互入口，调用方按"没配就不生成 link"处理，不是"配置缺失就崩"。
+    """
+    env_url = os.environ.get("NFC_BASE_URL", "").rstrip("/")
+    if env_url:
+        return env_url
+    return load().get("nfc_base_url", "").rstrip("/")

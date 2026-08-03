@@ -30,8 +30,10 @@ _counter_state = {"n": 0}
 def _push_counter():
     d = dot.resolve_device_id()
     n = _counter_state["n"]
+    base = config.nfc_base_url()
+    link = f"{base}/t/counter_tap" if base else ""
     return dot.push_text(d, title=str(n), message="贴一下 +1", signature="quote0-desk · NFC 计数器",
-                          refresh_now=True, task_alias="NFC 计数器")
+                          link=link, refresh_now=True, task_alias="NFC 计数器")
 
 
 @app.route("/")
