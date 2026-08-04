@@ -10,6 +10,11 @@
 
 两边数据都可能是空的/陈旧的——如实显示"当前无持仓"/"策略未运行"，
 不编造活跃假象。绝不读取任何带 key/secret/credential 字样的文件。
+
+两个项目的路径从 `config.json` 读（`beacon_lighter_dir` /
+`beacon_stock_radar_dir`，控制台设置页可改），默认值就是原来写死在这个
+文件里的那两个路径——把它们从模块常量搬进配置，是因为别人 clone 这个仓库
+时那两个目录多半不在同一个位置，改配置总比改源码合理。
 """
 from __future__ import annotations
 
@@ -18,14 +23,22 @@ import json
 import os
 import time
 
-LIGHTER_SCALPER_DIR = os.path.expanduser("~/lighter-scalper")
-STOCK_RADAR_DIR = os.path.expanduser("~/dev/stock-radar")
+import config
 
 STALE_AFTER_HOURS = 24  # 超过这个时长没新日志，就不算"运行中"
 
 
+def lighter_dir() -> str:
+    return config.path_setting("beacon_lighter_dir")
+
+
+def stock_radar_dir() -> str:
+    return config.path_setting("beacon_stock_radar_dir")
+
+
 def lighter_status() -> dict:
-    positions_path = os.path.join(LIGHTER_SCALPER_DIR, "data", "positions.json")
+    root = lighter_dir()
+    positions_path = os.path.join(root, "data", "positions.json")
     positions = []
     if os.path.exists(positions_path):
         try:
@@ -34,7 +47,7 @@ def lighter_status() -> dict:
         except (json.JSONDecodeError, OSError):
             positions = []
 
-    log_pattern = os.path.join(LIGHTER_SCALPER_DIR, "logs", "*.log")
+    log_pattern = os.path.join(root, "logs", "*.log")
     latest_mtime = 0.0
     for path in glob.glob(log_pattern):
         try:
@@ -47,7 +60,7 @@ def lighter_status() -> dict:
 
 
 def stock_radar_latest_signal() -> dict | None:
-    pattern = os.path.join(STOCK_RADAR_DIR, "scripts", ".scan_state", "*.json")
+    pattern = os.path.join(stock_radar_dir(), "scripts", ".scan_state", "*.json")
     best = None
     for path in glob.glob(pattern):
         symbol = os.path.basename(path).replace(".json", "")

@@ -193,19 +193,16 @@ python3 server.py             # 常驻运行，调度线程随 Flask 一起启�
 
 ## 自己部署：需要改的几处
 
-`providers/beacon.py`、`capsule.py`、`pet.py` 里有几个路径常量，指向我本机的项目位置：
+实盘信标、时间胶囊、屏上宠物这三张卡要读本机其他项目的目录，默认值指向我自己的位置：
 
-```python
-# providers/beacon.py
-LIGHTER_SCALPER_DIR = os.path.expanduser("~/lighter-scalper")
-STOCK_RADAR_DIR = os.path.expanduser("~/dev/stock-radar")
+| 设置页的标签 | 配置项 | 默认值 |
+|---|---|---|
+| 实盘策略路径 | `beacon_lighter_dir` | `~/lighter-scalper` |
+| 选股信号路径 | `beacon_stock_radar_dir` | `~/dev/stock-radar` |
+| 时间胶囊扫描的仓库 | `capsule_repos` | `~/dev/quote0-desk`、`~/dev/pocket-prophet-dashboard` |
+| 宠物活跃度参考的仓库 | `pet_repos` | 同上 |
 
-# providers/capsule.py, providers/pet.py
-DEFAULT_REPOS = [os.path.expanduser("~/dev/quote0-desk"),
-                 os.path.expanduser("~/dev/pocket-prophet-dashboard")]
-```
-
-这几个目录在别人机器上大概率不存在——不是 bug，是"配置成你自己的路径"这一步，代码本身会优雅降级（读不到就显示"暂无数据"，不会报错崩溃），把这几个常量改成你自己的实际路径就能让这几张卡显示有意义的内容。
+这几个目录在别人机器上大概率不存在——不是 bug，代码本身会优雅降级（读不到就显示"暂无数据"，不会报错崩溃）。改成你自己的路径有三条途径，任选一条：[本地控制台](#本地控制台)设置页的「路径配置」、`POST /api/config`、或者直接编辑 `config.json`。不用再改 Python 源码（2026-08-04 之前这几个值是写死在 provider 里的模块常量）。
 
 ## MCP：让 Claude 直接操作 Quote/0
 
