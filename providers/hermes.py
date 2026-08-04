@@ -5,17 +5,14 @@ gateway（NousResearch Hermes Agent 的自托管运行时，跟这个项目本�
 
 跟 providers/buddy.py 同一套纪律：只读、可选、永不抛异常、`available` 契约。
 
-协议依据 docs/PLAN-hermes-integration.md 的真机验证记录（2026-08-04）：
-- `GET /health` 不需要鉴权，只返回健康检查（platform/version）——先探这个，
-  gateway 真的没在跑时不会因为缺 key 而误报"没配 key"，两种"不可用"原因
-  分得清楚。
-- `GET /api/jobs` 需要 Bearer token 鉴权（网关的 API_SERVER_KEY，回环地址
-  也不放过），默认不含 paused/disabled 的任务，要看全量得加
-  `?include_disabled=true`。
+`GET /health` 不需要鉴权，只返回健康检查（platform/version）——先探这个，
+gateway 真的没在跑时不会因为缺 key 而误报"没配 key"，两种"不可用"原因
+分得清楚。`GET /api/jobs` 需要 Bearer token 鉴权（网关的 API_SERVER_KEY，
+回环地址也不放过），默认不含 paused/disabled 的任务，要看全量得加
+`?include_disabled=true`。
 
-`API_SERVER_KEY` 只认环境变量 `HERMES_API_KEY`——真机验证时这把 key 是
-内联传给 `hermes gateway run` 的，没有确认过的落盘位置；跟这个项目自己
-`DOT_API_KEY` 的纪律一致：不猜文件路径，只读环境变量。
+`API_SERVER_KEY` 只认环境变量 `HERMES_API_KEY`，不落盘、不猜文件路径——
+跟这个项目自己 `DOT_API_KEY` 的纪律一致。
 """
 from __future__ import annotations
 

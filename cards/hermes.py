@@ -1,14 +1,13 @@
 """Hermes 任务台卡：本机 hermes-agent gateway 的定时任务概览，只读展示，
-不在这张卡里触发/暂停/编辑任何任务——那是 NFC 双向控制的范围（见
-docs/PLAN-hermes-integration.md 第 6 步，需另行确认才做）。
+不在这张卡里触发/暂停/编辑任何任务——贴一下 NFC 触发/批准是完全不同量级的
+操作，需要单独设计安全边界，不顺手放进这张展示卡里。
 
 gateway 没在跑或没配 HERMES_API_KEY 时优雅显示"未接入"，不报错——这是
 用户本机的可选基础设施，公开仓库的绝大多数使用者不会有这个东西，见
 providers/hermes.py 的降级契约。
 
-真机验证过的字段只有任务的 id/name（见 docs/PLAN-hermes-integration.md
-真机执行记录），其余字段（next_run_at、enabled 之类）用 .get() 防御式取，
-拿不到就不显示那部分细节，不假设一个没验证过的 JSON 形状。
+任务的 name/schedule 字段用 .get() 防御式取，拿不到就不显示那部分细节，
+不假设一个没有把握的 JSON 形状。
 """
 from __future__ import annotations
 
