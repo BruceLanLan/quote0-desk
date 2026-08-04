@@ -5,7 +5,7 @@
 跟官方社区里其他项目最大的不同：**贴一下 NFC 会闭环**。MindReset 官方生态里已经有 20+ 第三方项目（Home Assistant 集成、用量看板、MCP server……），但都是单向数据面板，推上去就完了。这个项目把 NFC 也用上了：贴一下手机 → 打开这张卡自己的回调地址 → 服务器执行一个动作（喂宠物、抽一签、打卡、翻下一句箴言）→ 立刻把新内容推回屏幕。屏幕出题，手机作答，屏幕再变——不只是显示器，是能被摸一下就有反应的桌面装置。
 
 <p align="center">
-  <img src="docs/img/pet.png" width="45%" alt="屏上宠物卡：ASCII 造型，状态由 commit/时间流逝驱动">
+  <img src="docs/img/pet.png" width="45%" alt="屏上宠物卡：ASCII 造型，状态由真实活动信号驱动">
   <img src="docs/img/liuyao.png" width="45%" alt="摇卦卡：六爻爻线 + 卦名判断">
 </p>
 <p align="center">
@@ -85,11 +85,21 @@ export NFC_BASE_URL=https://xxxx.trycloudflare.com
 | 摇卦 | `push liuyao` | `secrets` 真随机抛铜钱起卦 |
 | 奇门遁甲 | `push qimen` | 九宫格排盘 |
 | 签筒 | `push qiantong` | 摇卦/奇门二选一，NFC 触发版 |
-| Claude Code 状态灯 | `push status` | 优先显示真实账号配额（5h/7d 用量百分比），拿不到就退回本地转录文件估算的今日 token/成本 |
-| 屏上宠物 | `push pet` | ASCII 造型（移植自 claude-buddy），状态由真实行为驱动：commit = 喂食，长时间不动 = 饿，NFC 贴一下 = 摸摸 |
+| Claude Code 状态灯 | `push status` | 优先显示真实账号配额（5h/7d 用量百分比），拿不到就退回本地转录文件估算的今日 token/成本；活跃指示优先读 buddy-bridge（见下），没有就退回转录文件 mtime |
+| 屏上宠物 | `push pet` | ASCII 造型（移植自 claude-buddy），状态由真实行为驱动：buddy-bridge 在跑就用它的 running/waiting 信号，没有就退回 commit = 喂食、长时间不动 = 饿；NFC 贴一下 = 摸摸 |
 | 今日一件事 | `push todo` / `set-todo "..."` | 单条每日承诺，NFC 打卡 |
 | 时间胶囊 | `push capsule` | 本机 git 仓库历史里"一年前/一个月前/一周前的今天"提交 |
 | 实盘信标 | `push beacon` | 只读展示交易策略持仓 + 选股信号，不导入对应项目的代码/密钥 |
+
+### 可选集成：buddy-bridge
+
+如果本机在跑 [buddy-bridge](https://github.com/anthropics/claude-desktop-buddy)
+风格的 hook 桥接守护进程（`~/buddy-bridge`，`GET http://127.0.0.1:49431/status`
+带 `~/.buddy-bridge/token` 鉴权），状态灯和屏上宠物会自动优先用它的实时
+`running`/`waiting` 信号，比"猜"（扫转录文件 mtime、扫 git commit 时间）
+准得多——宠物甚至会多一个"有操作在等你批准"的表情。**这是可选的**，没有
+这个守护进程两张卡照样正常工作，只是退回原来的猜测逻辑，见
+`providers/buddy.py` 的降级处理。
 
 日课/时辰盘（干支排盘卡）计划中但尚未实现。
 

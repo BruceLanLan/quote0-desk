@@ -1,8 +1,14 @@
 """屏上宠物：状态由真实行为驱动，不是手点喂食。
 
-- **commit = 喂食**：`DEFAULT_REPOS`（复用 capsule.py 同一批仓库）里出现比
-  上次记录更新的 commit，判定为"喂过了"，饥饿清零。
-- **长时间不开机/不提交 = 饿**：饥饿值按距上次喂食的真实小时数线性增长。
+- **优先信号——buddy-bridge**：如果本机在跑 `~/buddy-bridge`（另一个本机
+  项目，用 Claude Code hook 实时上报会话状态），直接读它的 `running`/
+  `waiting` 字段——真在干活 = 喂食，等审批 = 一个新的"等待"表情。这比
+  "扫两个仓库的 git commit 时间"准得多，commit 只在提交那一刻才有信号，
+  buddy-bridge 是连续的。
+- **兜底信号——commit**：buddy-bridge 没在跑（公开仓库的其他使用者大概率
+  没有这个守护进程）就退回原来的逻辑：`DEFAULT_REPOS` 里出现比上次记录
+  更新的 commit，判定为"喂过了"，饥饿清零。
+- **长时间没有任何信号 = 饿**：饥饿值按距上次喂食的真实小时数线性增长。
 - **NFC 贴一下 = 摸摸**：不影响饥饿，只给一次性的"精神"反应（眼神变化 +
   一句话），持续到下次 scan 判定超时为止——这是即时互动，跟"喂食"这个
   需要真实行为的动作分开，别把两件事混成一件事。
@@ -17,6 +23,8 @@ import os
 import subprocess
 import time
 from datetime import datetime
+
+from providers.buddy import fetch as fetch_buddy
 
 STATE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "pet_state.json")
 
@@ -87,10 +95,16 @@ def scan(repos: list[str] = None) -> dict:
     hunger = state.get("hunger", 20)
     last_pat_ts = state.get("last_pat_ts", 0)
 
+    buddy = fetch_buddy()
+    buddy_working = buddy.get("available") and buddy.get("running", 0) > 0
+    buddy_waiting = buddy.get("available") and buddy.get("waiting", 0) > 0
+
     latest_commit = _latest_commit_across(repos)
-    fed_just_now = latest_commit is not None and latest_commit > last_seen_commit_ts
-    if fed_just_now:
+    fed_by_commit = latest_commit is not None and latest_commit > last_seen_commit_ts
+    fed_just_now = fed_by_commit or buddy_working
+    if fed_by_commit:
         last_seen_commit_ts = latest_commit
+    if fed_just_now:
         last_fed_ts = now
         hunger = 0
     else:
@@ -107,7 +121,12 @@ def scan(repos: list[str] = None) -> dict:
     _save(state)
 
     patted_recently = (now - last_pat_ts) < PAT_GLOW_SECONDS
-    mood = "alert" if patted_recently else _mood_from_hunger(hunger)
+    if buddy_waiting:
+        mood = "waiting"  # 一个操作在等审批，跟饥饿状态无关，优先显示
+    elif patted_recently:
+        mood = "alert"
+    else:
+        mood = _mood_from_hunger(hunger)
 
     return {
         "species": state["species"],
