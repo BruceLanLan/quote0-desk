@@ -15,16 +15,6 @@ CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
 DEFAULTS = {
     "device_id": "",  # 留空则启动时用 GET /devices 自动发现（前提：账号下只有一台）
     "nfc_base_url": "",  # NFC 回调服务的可达地址，例：http://<LAN_IP>:5252（局域网 IP 会变，改这一处，不用逐张卡改）
-    # ⚠️ 下面这四项目前没有任何代码在读（2026-08-04 核对）：天气卡还没做；
-    # 「哪些卡生效」实际是靠 auto_push_cards 决定的，enabled_cards 是早期设计
-    # 的残留；箴言机最后选了纯种子缓存、不调模型，那两个成本闸参数因此一直没
-    # 派上用场。留着是因为对应功能还在路线图上，但**故意不给它们做设置页入口**
-    # ——后台摆一个拧了不起作用的旋钮，比没有旋钮更糟。等哪张卡真的开始读它们
-    # 了，再一起把 UI 补上。
-    "weather_city": "深圳",
-    "enabled_cards": ["proverb"],
-    "proverb_daily_generations": 6,
-    "proverb_cache_min": 2,
     # 自动推送：默认关闭，需显式布防（同 pocket-prophet 的教训）。
     "auto_push_enabled": False,
     "auto_push_interval_minutes": 10,
@@ -80,7 +70,7 @@ def path_setting(key: str) -> str:
 def path_list_setting(key: str) -> list[str]:
     """读一个路径列表配置（仓库列表这类），逐个展开 `~`、丢掉空项。整个列表
     为空同样退回默认值——用户在后台把输入框清空，意思大概率是"恢复默认"，
-    不是"一个仓库都不扫"（真想关掉这张卡，从 enabled_cards 里去掉才对）。"""
+    不是"一个仓库都不扫"（真想关掉这张卡，从设置页的自动轮换列表里去掉才对）。"""
     raw = load().get(key)
     if not isinstance(raw, list):
         raw = []

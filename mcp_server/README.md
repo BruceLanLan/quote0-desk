@@ -10,7 +10,7 @@
 
 ```bash
 cd mcp_server
-python3.10 -m venv .venv   # 或任何 >= 3.10 的解释器，比如 brew 装的 python3.12/python3.13
+python3.12 -m venv .venv   # 任何 >= 3.10 的解释器都行；系统自带的 python3 通常是 3.9，装不了，得用 brew 的 python@3.11/3.12/3.13
 .venv/bin/pip install -r requirements.txt
 ```
 

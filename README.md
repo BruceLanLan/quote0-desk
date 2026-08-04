@@ -193,16 +193,13 @@ python3 server.py             # 常驻运行，调度线程随 Flask 一起启�
 
 ## 自己部署：需要改的几处
 
-实盘信标、时间胶囊、屏上宠物这三张卡要读本机其他项目的目录，默认值指向我自己的位置：
+有三张卡会读"本机其他地方的数据"，默认值是**我自己机器上的路径**，clone 下来直接用大概率读不到东西——这不是 bug，读不到就显示"暂无数据"，不会报错崩溃，但你可能想接上自己的数据源：
 
-| 设置页的标签 | 配置项 | 默认值 |
-|---|---|---|
-| 实盘策略路径 | `beacon_lighter_dir` | `~/lighter-scalper` |
-| 选股信号路径 | `beacon_stock_radar_dir` | `~/dev/stock-radar` |
-| 时间胶囊扫描的仓库 | `capsule_repos` | `~/dev/quote0-desk`、`~/dev/pocket-prophet-dashboard` |
-| 宠物活跃度参考的仓库 | `pet_repos` | 同上 |
+**时间胶囊 / 屏上宠物的活跃度判断**——`capsule_repos` / `pet_repos`，任意本地 git 仓库的路径都行，不依赖仓库里有什么特殊文件，纯粹用 `git log` 找"这一天你在写什么代码"。默认指向的是我自己电脑上的另外两个项目（对你来说无意义），改成你自己的仓库路径就行，比如这个项目自己：`~/dev/quote0-desk`。
 
-这几个目录在别人机器上大概率不存在——不是 bug，代码本身会优雅降级（读不到就显示"暂无数据"，不会报错崩溃）。改成你自己的路径有三条途径，任选一条：[本地控制台](#本地控制台)设置页的「路径配置」、`POST /api/config`、或者直接编辑 `config.json`。不用再改 Python 源码（2026-08-04 之前这几个值是写死在 provider 里的模块常量）。
+**实盘信标**——`beacon_lighter_dir` / `beacon_stock_radar_dir`，这张卡本质是我自己另外两个**未公开**的交易/选股小工具（`lighter-scalper`、`stock-radar`）的只读展示面板，认的是那两个工具自己写的本地状态文件格式（`data/positions.json`、`scripts/.scan_state/*.json`，具体字段见 [`providers/beacon.py`](providers/beacon.py)）。你大概率没有跟它们格式一样的工具——这张卡对你来说基本是个"看不懂在读什么"的摆设，可以直接无视，或者去[本地控制台](#本地控制台)设置页的「自动轮换」里不勾选它。真想接自己的交易工具，参照 `providers/beacon.py` 的读取逻辑自己改一版就行，代码很短。
+
+以上路径都在[本地控制台](#本地控制台)设置页的「路径配置」改，也可以 `POST /api/config` 或直接编辑 `config.json`，不用碰 Python 源码。
 
 ## MCP：让 Claude 直接操作 Quote/0
 
