@@ -76,3 +76,34 @@ def fetch() -> dict:
         "tokens_today": snapshot.get("tokens_today", 0),
         "msg": snapshot.get("msg", ""),
     }
+
+
+def base_state(snapshot: dict) -> str | None:
+    """把一份 buddy 快照翻译成官方 claude-desktop-buddy 的基础状态名
+    （`attention` / `busy` / `idle`），快照不可用时返回 `None`，让调用方各自
+    决定怎么降级（宠物卡退回 git commit 时间，状态灯退回转录文件 mtime）。
+
+    这个函数是 2026-08-04 加的：在此之前 `cards/status.py` 的 `_active()` 和
+    `providers/pet.py` 里算 `base_state` 的那几行，是对同一份快照的两套独立
+    实现——状态灯只区分"活跃/空闲"，宠物区分 attention/busy/idle，两边改一处
+    另一处不会跟着变，迟早漂移成"状态灯说空闲、宠物说在等你批准"。判定逻辑
+    收在数据源这一侧只留一份，两张卡都从这里取。
+
+    `celebrate` / `heart` 故意不在这里：那两个状态是宠物自己的里程碑计时器和
+    NFC 摸摸驱动的，跟 buddy 快照无关，也不该出现在状态灯上。
+    """
+    if not snapshot.get("available"):
+        return None
+    if snapshot.get("waiting", 0) > 0:
+        return "attention"
+    if snapshot.get("running", 0) > 0:
+        return "busy"
+    return "idle"
+
+
+def is_active(snapshot: dict) -> bool | None:
+    """"有没有正在发生的事"——`busy`（跑着）和 `attention`（等审批）都算活跃。
+    快照不可用返回 `None`（不是 `False`），因为"守护进程没开"跟"确实空闲"是
+    两回事，调用方要能区分才好降级。"""
+    state = base_state(snapshot)
+    return None if state is None else state in ("busy", "attention")
