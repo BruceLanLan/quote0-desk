@@ -71,12 +71,12 @@ python3 cli.py arm
 
 ## 涉及个人路径怎么办
 
-如果新卡要读某个本地项目/文件（参照 `providers/beacon.py`、`capsule.py` 的做法），把路径定义成模块顶部的常量、用 `os.path.expanduser("~/...")`，并且在读不到时优雅降级（返回"暂无数据"而不是抛异常）——不要硬编码成你自己机器上的绝对路径。README 的「换个人跑」一节会列出所有这类常量，加了新的记得同步过去一行。
+如果新卡要读某个本地项目/文件（参照 `providers/beacon.py`、`capsule.py` 的做法），不要把路径写成模块顶部的常量——那是早期做法，2026-08-04 之后已经全部搬进 `config.json`。正确做法是在 `config.py` 的 `DEFAULTS` 里加一项（默认值就是你自己机器上的路径，别人 clone 了改配置就行，不用碰源码），provider 里用 `config.path_setting("你的键名")`（单个路径）或 `config.path_list_setting("你的键名")`（路径列表）读，两个函数都会自动 `expanduser` 并在值为空时退回默认值。读不到文件时要优雅降级（返回"暂无数据"而不是抛异常）。加完记得：`server.py` 的 `_EXPOSED_KEYS` 加一行让设置页能读写，`templates/settings.html`「路径配置」卡片加一个输入框，README 的「自己部署：需要改的几处」一节同步一行。
 
 ## 检查清单
 
 - [ ] `build()` 返回的 dict 有 `alias`，`link` 要么是真实 NFC 地址要么是空字符串（不是 `None`）
-- [ ] 新增的本地路径常量用 `expanduser`，读不到时不崩溃
+- [ ] 新增的本地路径配置项放进 `config.py` 的 `DEFAULTS`、用 `path_setting`/`path_list_setting` 读，读不到时不崩溃
 - [ ] 需要 NFC 的话，`server.py` 的路由和 README 的「NFC 回调服务」路由表都加了对应行
 - [ ] `python3 cli.py push <name>` 跑一遍，`python3 cli.py snapshot out.png` 确认真机渲染符合预期
 - [ ] API Key / 设备序列号 / 局域网信息全部走环境变量或占位符，`git grep` 一下确认没有硬编码进新文件
