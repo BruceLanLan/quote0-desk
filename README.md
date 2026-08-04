@@ -1,15 +1,23 @@
 # quote0-desk
 
-给 [Quote/0](https://dot.mindreset.tech/developers) 墨水屏做的桌面装置服务。
-同厂商 [pocket-prophet-dashboard](https://github.com/BruceLanLan/pocket-prophet-dashboard)
-（Rand/0 口袋先知）的姊妹项目，但架构不同——Quote/0 常联网、走官方 REST API，
-不是局域网直连；296×152 横屏黑白，不是 200×200 方屏；最大的区别是**有 NFC**：
-手机贴一下能打开当前内容绑定的 `link`，构成"屏幕出题 → 手机贴一下 → 服务
-干活 → 屏幕变化"的闭环，不只是单向数据面板。
+一个跑在你自己电脑上的小服务，把 9 张自定义内容卡推到 [Quote/0](https://dot.mindreset.tech/developers) 墨水屏上——桌面箴言、六爻摇卦、奇门遁甲、Claude Code 用量、一只用真实行为养的 ASCII 宠物，等等。
 
-设备真机契约（槽模型、字号下限、Canvas `\n` 处理等实测结论）见
-[`docs/DEVICE-FACTS.md`](docs/DEVICE-FACTS.md)，是本项目所有设计决策的事实依据，
-遇到"为什么这么写"先去那份文档找证据。
+跟官方社区里其他项目最大的不同：**贴一下 NFC 会闭环**。MindReset 官方生态里已经有 20+ 第三方项目（Home Assistant 集成、用量看板、MCP server……），但都是单向数据面板，推上去就完了。这个项目把 NFC 也用上了：贴一下手机 → 打开这张卡自己的回调地址 → 服务器执行一个动作（喂宠物、抽一签、打卡、翻下一句箴言）→ 立刻把新内容推回屏幕。屏幕出题，手机作答，屏幕再变——不只是显示器，是能被摸一下就有反应的桌面装置。
+
+<p align="center">
+  <img src="docs/img/pet.png" width="45%" alt="屏上宠物卡：ASCII 造型，状态由 commit/时间流逝驱动">
+  <img src="docs/img/liuyao.png" width="45%" alt="摇卦卡：六爻爻线 + 卦名判断">
+</p>
+<p align="center">
+  <img src="docs/img/qimen.png" width="45%" alt="奇门遁甲卡：九宫格排盘">
+  <img src="docs/img/proverb.png" width="45%" alt="箴言机卡：Text API 默认排版">
+</p>
+
+## 先知道这一件事：只有 2 个槽位
+
+Quote/0 的官方 API 只能"更新"设备上已经存在的内容槽，不能凭空创建新内容项，而且**账号的 loop 槽位有硬上限（3 个）**。留 1 个给官方内容（天气、新闻之类）的话，你实际能用的就是 2 个：**Text API** + **Image API**。
+
+这不是限制卡的数量——9 张卡照样能做，调度器负责按时间分片轮流推。真正决定的是**同一时刻屏幕上能露出几张脸**：2 个槽意味着最多两种"当前显示"同时存在，其余的卡都在排队等下一轮。设计新卡之前先知道这一点，比事后发现槽位不够省事得多。详见 [`docs/DEVICE-FACTS.md`](docs/DEVICE-FACTS.md) 的完整实测记录。
 
 ## 快速开始
 
@@ -26,12 +34,7 @@ python3 cli.py push <card_name>    # 推 cards/ 下某张卡，比如 python3 cl
 python3 cli.py set-todo "今天要做的事"
 ```
 
-**关键前提**：Quote/0 的官方 API 只能"更新" Dot App「内容工坊」里预先建好的
-内容槽，不能凭空创建新内容项，而且**账号的 loop 槽位有硬上限（3 个）**。
-本项目实际能用的是其中 2 个：**文本 API**（Text）+ **图片 API**（Image），
-第 3 个槽由用户自己留给官方内容，Canvas API 已经不在架构里（详见
-`docs/DEVICE-FACTS.md` 08-01 那节的重写说明）。内容工坊加好槽之后不用
-告诉这边具体的 key——`GET /loop/list` 会自动发现，按 `type` 字段区分。
+**前提**：先在 Dot App「内容工坊」里加好 **文本 API** 和 **图片 API** 两个内容槽，挂到设备循环任务里。加好之后不用告诉这边具体的 key——`GET /loop/list` 会自动发现，按 `type` 字段区分。
 
 ## NFC 回调服务
 
@@ -39,10 +42,22 @@ python3 cli.py set-todo "今天要做的事"
 python3 server.py   # Flask，默认监听 0.0.0.0:5252
 ```
 
-每次推送时把 `link` 字段设成 `http(s)://<能被手机访问到的地址>/t/<action>`，
-手机贴一下 NFC → 打开这个 URL → 对应路由执行动作 → 立即把新内容推回屏幕。
-`link` 目前必须是手机连得到的地址（跟设备同一 WiFi 的局域网 IP，或者公网/
-内网穿透地址）——纯 `localhost` 手机连不上。
+每次推送时把 `link` 字段设成自己服务的地址，手机贴一下 NFC → 打开这个 URL → 对应路由执行动作 → 立即把新内容推回屏幕。这个地址从哪来，统一由一个配置项决定：
+
+```bash
+export NFC_BASE_URL=http://192.168.1.23:5252   # 手机和这台机器在同一局域网时
+```
+
+不设置的话卡片就没有 `link`（能正常显示，只是贴了没反应）。局域网 IP 会变、或者手机和这台机器不在同一个网络时，装一个免注册的公网隧道更省心：
+
+```bash
+brew install cloudflared
+cloudflared tunnel --url http://localhost:5252
+# 输出里会有一行 https://xxxx.trycloudflare.com，把它设成 NFC_BASE_URL
+export NFC_BASE_URL=https://xxxx.trycloudflare.com
+```
+
+`nfc_base_url` 也可以直接写进 `config.json`（已在 `.gitignore` 里，不会进仓库），不用每次开新终端都重新 `export`。
 
 | 路由 | 触发效果 |
 |---|---|
@@ -53,21 +68,46 @@ python3 server.py   # Flask，默认监听 0.0.0.0:5252
 | `/t/pet_pat` | 摸摸屏上宠物，触发一次性"精神"反应 |
 | `/t/ping` | 探测用，只记日志不推送 |
 
+### 排障：贴了没反应
+
+真机踩过的坑，按可能性排序：
+
+1. **手机开着 VPN。** 这是目前唯一确认过的"NFC 跳到 Dot App 内部预览、没转发到我们网页"的原因——App 内部会显示一个没有任何可点内容的小窗口。关掉手机侧 VPN 立刻恢复正常。花了一整晚才定位到这个，遇到同样症状可以直接跳过网络排查，先问这一句。
+2. **`NFC_BASE_URL` 是旧的。** 局域网 IP 变了、隧道进程重启了地址就变了，`config.json` 里存的还是老值。重新 `export`/`config.update()` 一下。
+3. **手机和这台机器不在同一局域网。** 用公网隧道方案（见上）。
+4. **卡片的 `link` 是空的。** 检查对应 `cards/*.py` 的 `build()` 是不是真的用了 `config.nfc_base_url()` 拼了地址——不是所有卡都需要 NFC 交互（状态灯、时间胶囊、信标这几张本来就没有 `/t/...` 路由，`link` 为空是预期行为）。
+
 ## 内容卡
 
 | 卡 | 命令 | 说明 |
 |---|---|---|
 | 箴言机 | `push proverb` | 种子缓存里挑一句，NFC 换下一句；不接模型生成，避免"刷一次屏调一次模型" |
-| 摇卦 | `push liuyao` | `secrets` 真随机抛铜钱起卦，移植自 pocket-prophet-dashboard |
-| 奇门遁甲 | `push qimen` | 九宫格排盘，移植自 pocket-prophet-dashboard |
+| 摇卦 | `push liuyao` | `secrets` 真随机抛铜钱起卦 |
+| 奇门遁甲 | `push qimen` | 九宫格排盘 |
 | 签筒 | `push qiantong` | 摇卦/奇门二选一，NFC 触发版 |
-| Claude Code 状态灯 | `push status` | 扫描 `~/.claude/projects` 的转录文件，今日 token/成本估算 + 活跃指示 |
+| Claude Code 状态灯 | `push status` | 优先显示真实账号配额（5h/7d 用量百分比），拿不到就退回本地转录文件估算的今日 token/成本 |
 | 屏上宠物 | `push pet` | ASCII 造型（移植自 claude-buddy），状态由真实行为驱动：commit = 喂食，长时间不动 = 饿，NFC 贴一下 = 摸摸 |
 | 今日一件事 | `push todo` / `set-todo "..."` | 单条每日承诺，NFC 打卡 |
 | 时间胶囊 | `push capsule` | 本机 git 仓库历史里"一年前/一个月前/一周前的今天"提交 |
-| 实盘信标 | `push beacon` | 只读展示 lighter-scalper 持仓 + stock-radar 最新信号，不导入其代码/密钥 |
+| 实盘信标 | `push beacon` | 只读展示交易策略持仓 + 选股信号，不导入对应项目的代码/密钥 |
 
 日课/时辰盘（干支排盘卡）计划中但尚未实现。
+
+### 几张卡默认指向我自己的目录，换个人跑要改
+
+`providers/beacon.py`、`capsule.py`、`pet.py` 里有几个路径常量，指向我本机的项目位置：
+
+```python
+# providers/beacon.py
+LIGHTER_SCALPER_DIR = os.path.expanduser("~/lighter-scalper")
+STOCK_RADAR_DIR = os.path.expanduser("~/dev/stock-radar")
+
+# providers/capsule.py, providers/pet.py
+DEFAULT_REPOS = [os.path.expanduser("~/dev/quote0-desk"),
+                 os.path.expanduser("~/dev/pocket-prophet-dashboard")]
+```
+
+这几个目录在别人机器上大概率不存在——不是 bug，是"个人工具默认值"，代码本身会优雅降级（读不到就显示"暂无数据"，不会报错崩溃），但想让这几张卡显示有意义的内容，把这几个常量改成你自己的实际路径。
 
 ## 架构
 
@@ -81,23 +121,12 @@ quote0-desk/
   providers/         # 纯数据逻辑，不碰渲染/推送
   server.py          # Flask：NFC 回调 /t/<action>
   push.py            # cli.py 和 server.py 共用的"按卡名推送"逻辑
+  scheduler.py        # 后台线程，按周期轮换推送
 ```
 
-设备只给了 2 个能用的槽（**Text API** + **Image API**，第 3 个槽上限被
-用户自留的官方内容占了，Canvas API 已经出局），但内容卡有 9 张。架构上
-不是"每张卡一个槽"，而是**同一个槽被不同卡分时复用**——由服务这边的调度
-决定当前该显示哪张卡，设备侧只是被动接受更新。设备原生的自动轮转
-（`interval.powerMs`）已调到官方上限（12 小时）来避免它在没推送的间隙自己
-把画面转走，节奏完全交给这边控制（编排/调度落在 M6，见下）。
+9 张卡分时复用 2 个槽（Text + Image），由 `scheduler.py` 决定当前该显示哪张。设备原生的自动轮转（`interval.powerMs`）调到了官方上限（12 小时）避免它在没推送的间隙自己把画面转走——这是刻意的取舍：曾经考虑过反过来利用原生轮转做"双通道并行"，但设备是三个槽（文字/图片/官方内容）一起轮，会打断 NFC 交互"贴一下之后结果要稳稳停在屏幕上"这个核心体验，所以否决了，细节见 `docs/DEVICE-FACTS.md`。
 
-槽位数量限制的是"同时能露出几张脸"，不限制卡的总数——加第 10 张卡不花
-任何槽位成本，调度器照样轮。
-
-## 调度器（M6）
-
-`scheduler.py` 是个后台 daemon 线程，按 `config.json` 的 `auto_push_interval_minutes`
-周期轮换推送 `auto_push_cards` 列表里的卡（不含 `qiantong`/`counter`，那些是
-NFC 触发的，不参与自动轮换）。默认关闭，需要显式布防：
+## 调度器
 
 ```bash
 python3 cli.py auto-cards proverb status todo capsule beacon liuyao qimen pet
@@ -106,23 +135,12 @@ python3 cli.py disarm         # 关闭
 python3 server.py             # 常驻运行，调度线程随 Flask 一起启动
 ```
 
-也可以直接打 `GET/POST /settings` 查看或改这三项配置（`auto_push_enabled` /
-`auto_push_interval_minutes` / `auto_push_cards`）。
+默认关闭，需要显式布防。也可以直接打 `GET/POST /settings` 查看或改配置（`auto_push_enabled` / `auto_push_interval_minutes` / `auto_push_cards`）。
 
 ## 状态
 
-M0（真机契约验证）到 M6（调度器 + 隐私审查）已完成，见 `docs/DEVICE-FACTS.md`
-的实测记录。
+M0（真机契约验证）到 M6（调度器 + 隐私审查）已完成，NFC 反馈闭环（项目的核心假设）已真机验证通过，完整记录见 [`docs/DEVICE-FACTS.md`](docs/DEVICE-FACTS.md)。
 
-NFC 的 `link` 语义（贴一下打开的是否确实是"当前内容"绑定的 URL，而非固定地址）
-是本项目的立足点假设——**已真机验证通过**，`M2` 完整闭环（贴一下 → 服务器
-动作 → 屏幕刷新）也已跑通（2026-08-04，见 `docs/DEVICE-FACTS.md` P2/M2）。
-中间踩过一个坑：手机自己开着 VPN 会让 NFC 跳到 Dot App 内部预览而不是我们
-的网页，关掉手机侧 VPN 就正常了——这是目前唯一确认过的"NFC 打不开网页"
-的原因。
+## License
 
-## 仓库状态
-
-当前私有。API Key 和设备序列号一律走环境变量/占位符，不落库；`docs/DEVICE-FACTS.md`
-的隐私审查记录一节有本次 `git grep` 扫描结果。计划做完、真机验证过 NFC 闭环后
-再决定是否公开。
+[MIT](LICENSE)
