@@ -23,6 +23,13 @@
 
 没有移植的官方状态：`dizzy`（原触发条件是摇晃设备的加速度计读数，
 Quote/0 没有加速度计，没有对应的物理动作可以触发）。
+
+**waiting 超时告警**：`waiting>0` 一进入就是 attention 状态（见上），
+但刚开始等待和已经等了很久，紧迫程度不一样——冰箱贴不该跟第一秒就喊
+"快来批准"一样吵。`waiting_since_ts` 记录这次等待从什么时候开始，超过
+`WAITING_ALERT_MINUTES` 才把 buddy-bridge 的 `msg`（正在等待的具体
+工具调用）显示到卡面上，见 `render/pet.py`。等待结束（`waiting`
+重新变 False）立刻清零，不会跨会话残留上一次的告警。
 """
 from __future__ import annotations
 
@@ -47,6 +54,7 @@ IDLE_WINDOW_HOURS = 6  # 没有 buddy-bridge 时，多久没提交就当"没连�
 HEART_GLOW_SECONDS = 600  # 摸摸之后 heart 状态维持多久
 CELEBRATE_GLOW_SECONDS = 900  # 里程碑庆祝维持多久
 CELEBRATE_STEP_TOKENS = 50_000  # 跟官方一致：每 50K tokens 一个里程碑
+WAITING_ALERT_MINUTES = 5  # 等待超过这个时长才升级成"点名工具"的告警
 
 
 def _load() -> dict:
@@ -94,6 +102,7 @@ def scan(repos: list[str] = None) -> dict:
     last_pat_ts = raw.get("last_pat_ts", 0)
     last_celebrated_milestone = raw.get("last_celebrated_milestone", 0)
     celebrate_started_ts = raw.get("celebrate_started_ts", 0)
+    waiting_since_ts = raw.get("waiting_since_ts", 0)
 
     buddy = fetch_buddy()
 
@@ -102,14 +111,22 @@ def scan(repos: list[str] = None) -> dict:
         running = buddy.get("running", 0) > 0
         base_state = "attention" if waiting else ("busy" if running else "idle")
         last_active_ts = now
+        if waiting:
+            waiting_since_ts = waiting_since_ts or now
+        else:
+            waiting_since_ts = 0
     else:
         waiting = False
+        waiting_since_ts = 0
         latest_commit = _latest_commit_across(repos)
         if latest_commit is not None and latest_commit > last_seen_commit_ts:
             last_seen_commit_ts = latest_commit
             last_active_ts = now
         hours_idle = max(0.0, (now - last_active_ts) / 3600)
         base_state = "sleep" if hours_idle > IDLE_WINDOW_HOURS else "idle"
+
+    waiting_minutes = int((now - waiting_since_ts) / 60) if waiting_since_ts else 0
+    waiting_alert = waiting and waiting_minutes >= WAITING_ALERT_MINUTES
 
     tokens_today = buddy.get("tokens_today", 0) if buddy.get("available") else 0
     milestone = tokens_today // CELEBRATE_STEP_TOKENS
@@ -137,6 +154,7 @@ def scan(repos: list[str] = None) -> dict:
         "last_pat_ts": last_pat_ts,
         "last_celebrated_milestone": last_celebrated_milestone,
         "celebrate_started_ts": celebrate_started_ts,
+        "waiting_since_ts": waiting_since_ts,
     })
 
     return {
@@ -144,6 +162,9 @@ def scan(repos: list[str] = None) -> dict:
         "state": display_state,
         "frame_index": int(now // 5) % 3,
         "last_active_label": datetime.fromtimestamp(last_active_ts).strftime("%m-%d %H:%M"),
+        "waiting_alert": waiting_alert,
+        "waiting_minutes": waiting_minutes,
+        "waiting_tool": buddy.get("msg", "") if waiting_alert else "",
     }
 
 
