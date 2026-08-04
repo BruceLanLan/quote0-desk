@@ -7,7 +7,8 @@
   `docs/img/` 的截图和 README 在 GitHub 上渲染正常，已核实。
 - **新增一项计划外的工作**：发现用户本机另有一个 `~/buddy-bridge` 项目
   （hook 桥接守护进程，真实的 Claude Code 活动信号源），已接入
-  `providers/pet.py`（喂食判定）和 `cards/status.py`（活跃指示），可选
+  `providers/pet.py`（sleep/idle/busy/attention 状态判定）和
+  `cards/status.py`（活跃指示），可选
   增强、真机验证过、graceful degradation 到位。详见对应 commit。
 - 第 1 步（P3 `shortcuts://`）、第 3 步（日课卡）、第 5 步（MCP）、
   第 6 步（showcase 提交）**仍未做**，见下方原始步骤。

@@ -107,8 +107,8 @@ def t_qiantong():
 
 @app.route("/t/pet_pat", methods=["GET", "POST"])
 def t_pet_pat():
-    """摸摸宠物：贴一下触发一次性精神反应，不影响饥饿值（真正的喂食靠
-    commit 触发，见 providers/pet.py）。"""
+    """摸摸宠物：贴一下触发一次性 heart 状态（对齐官方"被批准"的奖励
+    反应），跟 busy/idle/sleep 的判定互不影响，见 providers/pet.py。"""
     from providers.pet import pat
     state = pat()
     result = push_card("pet")
