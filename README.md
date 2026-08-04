@@ -13,6 +13,7 @@
 ## 特性
 
 - **NFC 真闭环**：贴一下手机，服务器执行动作，新内容立刻推回屏幕——不是"扫码看详情"，是屏幕本身会变。
+- **网页控制台**：不用背命令行，打开 `http://localhost:5252` 就能看设备状态、预览/推送每张卡、开关自动轮换。
 - **9 张内容卡开箱即用**：屏上宠物、六爻摇卦、奇门遁甲、签筒、桌面箴言机、今日打卡、时间胶囊、实盘信标、Claude Code 用量状态灯。
 - **宠物状态对齐官方语义**：ASCII 造型和状态机移植自 Anthropic 官方 [claude-desktop-buddy](https://github.com/anthropics/claude-desktop-buddy)，接入 [buddy-bridge](#可选集成buddy-bridge) 后用真实的 Claude Code 会话信号驱动，不是瞎写的心情值。
 - **开机自动拉起，隧道自愈**：`server.py` 和 NFC 公网隧道注册成 macOS 后台服务，进程死了自动重启，隧道地址变了自动回写配置，不用守着终端。
@@ -59,6 +60,16 @@ python3 cli.py set-todo "今天要做的事"
 **前提**：先在 Dot App「内容工坊」里加好 **文本 API** 和 **图片 API** 两个内容槽，挂到设备循环任务里。加好之后不用告诉这边具体的 key——`GET /loop/list` 会自动发现，按 `type` 字段区分。
 
 > **槽位限制，开发新卡前先知道**：Quote/0 账号的 loop 槽位有硬上限（3 个），留 1 个给官方内容（天气/新闻）的话，实际能用的只有 2 个：**Text API** + **Image API**。这不限制卡的数量（调度器负责轮流推），限制的是"同一时刻屏幕上能露出几张脸"。完整实测记录见 [`docs/DEVICE-FACTS.md`](docs/DEVICE-FACTS.md)。
+
+## 本地控制台
+
+不想背命令行的话，`python3 server.py` 起来之后打开 `http://localhost:5252` 就是一个网页控制台：设备在线状态、当前屏幕实际显示的内容、每张卡的"预览"（跑一遍 `build()` 但不推送）和"推送"按钮、自动轮换的布防状态都在这一页。`/settings` 是配置页——改 NFC 回调地址、开关自动轮换、勾选参与轮换的卡，不用手改 `config.json` 或拼 `curl` 命令。
+
+<p align="center">
+  <img src="docs/img/dashboard.png" width="45%" alt="本地控制台首页：设备状态、当前屏幕内容、每张卡的预览/推送按钮">
+</p>
+
+这套 UI 是照抄 [pocket-prophet-dashboard](https://github.com/BruceLanLan/pocket-prophet-dashboard)（同作者的姊妹项目）的控制台结构做的：`templates/*.html` + 一层 `/api/*` JSON 接口，Flask 自带 Jinja2，没加新依赖。手机和这台机器同一局域网时，手机浏览器打开 `http://<这台 Mac 的局域网 IP>:5252` 也能用同一个控制台。
 
 ## 配置 NFC 交互
 
@@ -175,7 +186,7 @@ python3 cli.py disarm         # 关闭
 python3 server.py             # 常驻运行，调度线程随 Flask 一起启动
 ```
 
-默认关闭，需要显式布防。也可以直接打 `GET/POST /settings` 查看或改配置（`auto_push_enabled` / `auto_push_interval_minutes` / `auto_push_cards`）。
+默认关闭，需要显式布防。命令行是最快的一次性设置方式；常用的话更推荐用[本地控制台](#本地控制台)的设置页点选，或者直接打 `GET/POST /api/config` 查看或改配置（`auto_push_enabled` / `auto_push_interval_minutes` / `auto_push_cards` / `nfc_base_url`）。
 
 ## 自己部署：需要改的几处
 

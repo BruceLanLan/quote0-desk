@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>quote0-desk 控制台</title>
+<style>
+body{font-family:-apple-system,Helvetica,Arial,sans-serif;background:#f5f3ee;color:#1d1d1f;margin:0;padding:18px;max-width:520px;margin-left:auto;margin-right:auto}
+h1{font-size:20px;margin:4px 0 14px}
+h1 a{float:right;font-size:14px;color:#6e6e73;text-decoration:none}
+.card{background:#fff;padding:18px;border-radius:18px;margin:12px 0;box-shadow:0 8px 24px rgba(0,0,0,.07)}
+.status{display:flex;align-items:center;gap:8px;font-size:14px;color:#6e6e73;margin-bottom:10px}
+.dot{width:10px;height:10px;border-radius:50%;background:#d1d1d6;flex-shrink:0}
+.dot.online{background:#34c759}
+.dot.offline{background:#ff9500}
+.autostatus{font-size:13px;color:#6e6e73;display:flex;align-items:center;gap:6px;margin-top:6px}
+.autostatus .armdot{width:8px;height:8px;border-radius:50%;background:#d1d1d6}
+.autostatus .armdot.on{background:#34c759}
+.screen{margin-top:12px;text-align:center}
+.screen img{max-width:100%;image-rendering:pixelated;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.16)}
+.screen .hint{font-size:12px;color:#8e8e93;margin-top:6px}
+.cardrow{padding:12px 0;border-bottom:1px solid #f0ede6}
+.cardrow:last-child{border-bottom:none}
+.cardrow .top{display:flex;align-items:center;gap:10px}
+.cardrow .label{flex:1;font-size:15px}
+.cardrow .actions{display:flex;gap:6px}
+.smallbtn{background:#ebe7df;color:#4b4035;border:0;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer}
+.smallbtn.primary{background:#111;color:#fff}
+.smallbtn:disabled{opacity:.5;cursor:not-allowed}
+.preview{margin-top:10px;display:none}
+.preview img{max-width:100%;image-rendering:pixelated;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.16);display:block;margin:0 auto}
+.textcard{background:#fbfaf7;border:1px solid #e3ded5;border-radius:10px;padding:12px;font-size:13px}
+.textcard .title{font-weight:600;margin-bottom:4px}
+.textcard .footer{color:#8e8e93;margin-top:6px;font-size:12px}
+.pushmsg{font-size:12px;text-align:center;padding:6px;border-radius:8px;margin-top:8px}
+.pushmsg.ok{background:#e8f8ea;color:#248a3d}
+.pushmsg.err{background:#fdecea;color:#d70015}
+.todorow{display:flex;gap:6px;margin-top:8px}
+.todorow input{flex:1;border:1px solid #e3ded5;border-radius:8px;background:#fbfaf7;color:#1d1d1f;font-size:13px;padding:8px}
+</style>
+</head>
+<body>
+<h1>quote0-desk <a href="/settings">设置</a></h1>
+
+<div class="card">
+  <div class="status">
+    <span class="dot" id="dot"></span>
+    <span id="statusText">检查设备状态…</span>
+  </div>
+  <div class="autostatus" id="autoStatus"></div>
+  <div class="screen" id="screenBox" style="display:none">
+    <img id="screenImg" alt="当前屏幕内容">
+    <div class="hint">当前屏幕实际显示内容（来自设备 renderInfo）</div>
+  </div>
+</div>
+
+<div class="card" id="cardList"></div>
+
+<script>
+const CARD_ORDER = ['pet','liuyao','qimen','qiantong','proverb','status','todo','capsule','beacon'];
+
+async function refreshStatus(){
+  try{
+    const r = await fetch('/api/status');
+    const j = await r.json();
+    const dot = document.getElementById('dot');
+    const text = document.getElementById('statusText');
+    if(!j.ok){
+      dot.className = 'dot offline';
+      text.textContent = j.hint || '状态获取失败（多半是 DOT_API_KEY 没配好）';
+      return;
+    }
+    const s = j.status;
+    dot.className = 'dot online';
+    text.textContent = `${s.status.current} · 电量 ${s.status.battery} · WiFi ${s.status.wifi}`;
+    const urls = s.renderInfo && s.renderInfo.current && s.renderInfo.current.image;
+    if(urls && urls[0]){
+      document.getElementById('screenImg').src = urls[0];
+      document.getElementById('screenBox').style.display = 'block';
+    }
+  }catch(e){
+    document.getElementById('statusText').textContent = '状态检查失败：' + e;
+  }
+}
+
+function fmtTime(iso){
+  if(!iso) return null;
+  const d = new Date(iso);
+  return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+}
+
+async function refreshAutoStatus(){
+  try{
+    const r = await fetch('/api/scheduler_status');
+    const j = await r.json();
+    const box = document.getElementById('autoStatus');
+    if(!j.armed){
+      box.innerHTML = `<span class="armdot"></span> 自动轮换未布防（在设置页开启）`;
+      return;
+    }
+    let extra = '';
+    if(j.last_push_at){
+      extra = ` · 上次 ${fmtTime(j.last_push_at)} ${j.last_push_card || ''} ${j.last_push_ok ? '✓' : '✗'}`;
+    }
+    const next = j.next_push_at ? `下次约 ${fmtTime(j.next_push_at)}` : '';
+    box.innerHTML = `<span class="armdot on"></span> 自动轮换已布防 · ${next}${extra}`;
+  }catch(e){
+    // 静默失败，不打扰主界面
+  }
+}
+
+function renderPreview(box, j){
+  if(!j.ok){
+    box.innerHTML = `<div class="pushmsg err">${j.hint || '失败'}</div>`;
+    return;
+  }
+  if(j.png){
+    box.innerHTML = `<img src="${j.png}" alt="${j.alias}">`;
+  } else if(j.data){
+    const d = j.data;
+    box.innerHTML = `<div class="textcard">
+      <div class="title">${d.title || ''}</div>
+      <div>${(d.message || '').replace(/\n/g,'<br>')}</div>
+      <div class="footer">${d.footer || ''}</div>
+    </div>`;
+  }
+}
+
+async function previewCard(name){
+  const box = document.getElementById('preview-' + name);
+  box.style.display = 'block';
+  box.innerHTML = '预览中…';
+  try{
+    const r = await fetch('/api/preview?card=' + name);
+    const j = await r.json();
+    renderPreview(box, j);
+  }catch(e){
+    box.innerHTML = `<div class="pushmsg err">网络错误：${e}</div>`;
+  }
+}
+
+async function pushCard(name){
+  const box = document.getElementById('preview-' + name);
+  box.style.display = 'block';
+  box.innerHTML = '推送中…';
+  try{
+    const r = await fetch('/api/push?card=' + name, {method: 'POST'});
+    const j = await r.json();
+    if(!j.ok){
+      box.innerHTML = `<div class="pushmsg err">${j.hint || '推送失败'}</div>`;
+      return;
+    }
+    const push = j.push;
+    const msg = push.ok
+      ? `<div class="pushmsg ok">已推送到设备</div>`
+      : `<div class="pushmsg err">${push.hint || '推送失败'}</div>`;
+    box.innerHTML = msg;
+  }catch(e){
+    box.innerHTML = `<div class="pushmsg err">网络错误：${e}</div>`;
+  }finally{
+    refreshStatus();
+  }
+}
+
+async function setTodoAndPush(){
+  const input = document.getElementById('todoInput');
+  const box = document.getElementById('preview-todo');
+  const task = input.value.trim();
+  if(!task) return;
+  box.style.display = 'block';
+  box.innerHTML = '设置中…';
+  try{
+    const r = await fetch('/api/todo', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({task}),
+    });
+    const j = await r.json();
+    if(!j.ok){
+      box.innerHTML = `<div class="pushmsg err">${j.hint || '设置失败'}</div>`;
+      return;
+    }
+    box.innerHTML = `<div class="pushmsg ok">已设置并推送到设备</div>`;
+    input.value = '';
+  }catch(e){
+    box.innerHTML = `<div class="pushmsg err">网络错误：${e}</div>`;
+  }finally{
+    refreshStatus();
+  }
+}
+
+async function buildCardList(){
+  const r = await fetch('/api/cards');
+  const cards = await r.json();
+  const list = document.getElementById('cardList');
+  list.innerHTML = CARD_ORDER.filter(k => cards[k]).map(name => {
+    const extra = name === 'todo'
+      ? `<div class="todorow"><input type="text" id="todoInput" placeholder="今天要做的事"><button class="smallbtn primary" onclick="setTodoAndPush()">设置并推送</button></div>`
+      : '';
+    return `
+      <div class="cardrow">
+        <div class="top">
+          <span class="label">${cards[name]}</span>
+          <div class="actions">
+            <button class="smallbtn" onclick="previewCard('${name}')">预览</button>
+            <button class="smallbtn primary" onclick="pushCard('${name}')">推送</button>
+          </div>
+        </div>
+        ${extra}
+        <div class="preview" id="preview-${name}"></div>
+      </div>
+    `;
+  }).join('');
+}
+
+buildCardList();
+refreshStatus();
+refreshAutoStatus();
+setInterval(refreshStatus, 15000);
+setInterval(refreshAutoStatus, 15000);
+</script>
+</body>
+</html>
