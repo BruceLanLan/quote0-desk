@@ -186,10 +186,13 @@ gateway 一起来就会立刻触发）。为了不在验证阶段意外真的跑
 2026-08-09 14:00，正常，但目前没有任何东西让 gateway 常驻（`~/Library/LaunchAgents`
 下没有 hermes 相关项），到时间点 gateway 没在跑就还是不会触发。
 
-**这个副作用还没有处理，需要用户决定怎么办**：
-`hermes cron edit 2afe30ab98af` 改个新 `run_at` 重新排期，或
-`hermes cron run 2afe30ab98af` 手动触发一次让它"补跑"，或者干脆不管——
-这三个都是用户的决定，不是技术问题。
+**用户决定（2026-08-04）：不处理，不再碰本机这个 hermes-agent 实例——用户准备
+重新装一遍、重新养 agent。** 所以这个 once 任务的补跑/重排问题就此作废，不用再
+跟进。后续步骤（第 2/3 步）针对的是 hermes-agent 的 API 形状（`/health`、
+`/api/jobs`、插件注册机制），这些在重装后应该还是一致的（同一份软件），但
+**最终真机验证需要等用户重装完成之后才能对着新实例跑一遍**，本机当前这个
+（已经被 uv python install 修好、但用户即将丢弃的）实例只用来验证 API 形状，
+不再作为长期开发环境。
 
 **发现一个可能对第 5 步接触材料有用的线索（未验证，标注为推测）**：gateway 的
 路由表里有 `POST /v1/runs/{run_id}/approval` 和 `GET /v1/runs/{run_id}/events`，
