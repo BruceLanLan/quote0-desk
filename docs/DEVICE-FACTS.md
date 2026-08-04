@@ -46,8 +46,9 @@ sleep: enabled, 02:00–09:00
 
 ### 循环任务当前内容（GET /loop/list，探测前）
 
-两项，均 `type=GENERAL`（App 自带的和风天气内容，非 API 内容）：
-`key=5fq8SKUbjmyF`（带地理位置：海南省海口市龙华区）、`key=XRwojqBRrJmf`。
+两项，均 `type=GENERAL`（App 自带的和风天气内容，非 API 内容），
+各自带一个 `key`（其中一个绑定了具体地理位置）——具体 key 值和位置信息
+不记在这里，代码不需要硬编码它们，`GET /loop/list` 按 `type` 字段自动识别。
 
 `GET /fixed/list` 为空。
 
@@ -227,14 +228,13 @@ VPN，这是已知的、验证过的头号嫌疑对象，不用再重新走一�
 
 ## 隐私审查记录（M6，2026-07-31）
 
-`git grep` 对照仓库根目录（`/Users/bruce/dev/quote0-desk`，确认不是误扫到
-`~` 那个大仓库）跑了一遍：
+`git grep` 对照仓库根目录（确认不是误扫到 `~` 那个大仓库）跑了一遍：
 
 - API Key（`dot_web_`/`dot_app_` 前缀）：未出现在任何跟踪文件里，本来就只经环境变量。
 - 设备序列号：本文档、`scripts/m0_probe.py` 里的实际序列号已替换成占位符
   `<DEVICE_SERIAL>` / `<你的设备序列号>`。
-- 用户名路径：`providers/beacon.py`、`capsule.py`、`pet.py` 里硬编码的
-  `/Users/bruce/...` 已改成 `os.path.expanduser("~/...")`，不再落死用户名。
+- 用户名路径：`providers/beacon.py`、`capsule.py`、`pet.py` 里原本硬编码的
+  绝对路径已改成 `os.path.expanduser("~/...")`，不再落死用户名。
 - 新增 `providers/claude_quota.py`（2026-08-01）引入了另一类凭据——Claude
   Code 自己的 OAuth accessToken（读 `~/.claude/.credentials.json`，只读
   不回写）。这个 token 不经过 config.json，也不打印/不落日志，`git grep`
