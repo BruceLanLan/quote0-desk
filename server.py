@@ -174,8 +174,6 @@ def _clean_path_list(value) -> list[str]:
 _EXPOSED_KEYS = [
     "nfc_base_url",
     "auto_push_enabled", "auto_push_interval_minutes", "auto_push_cards",
-    "weather_city", "enabled_cards",
-    "proverb_daily_generations", "proverb_cache_min",
     "pet_species", "pet_repos",
     "capsule_repos",
     "beacon_lighter_dir", "beacon_stock_radar_dir",
@@ -206,16 +204,8 @@ def api_config():
                                                       int(body["auto_push_interval_minutes"]))
     if "auto_push_cards" in body:
         updates["auto_push_cards"] = [c for c in body["auto_push_cards"] if c in CARDS]
-    if "enabled_cards" in body:
-        updates["enabled_cards"] = [c for c in body["enabled_cards"] if c in CARDS]
     if "nfc_base_url" in body:
         updates["nfc_base_url"] = str(body["nfc_base_url"]).strip()
-    if "weather_city" in body:
-        updates["weather_city"] = str(body["weather_city"]).strip()
-    if "proverb_daily_generations" in body:
-        updates["proverb_daily_generations"] = max(1, int(body["proverb_daily_generations"]))
-    if "proverb_cache_min" in body:
-        updates["proverb_cache_min"] = max(0, int(body["proverb_cache_min"]))
     if "pet_species" in body:
         # 在 API 层就拒绝非法造型。render_frame() 确实有"不认识就画鸭子"的兜底，
         # 但那是渲染时的自保，不该拿来当输入校验——存了个错值再悄悄画成鸭子，

@@ -6,7 +6,8 @@
   python3 cli.py hello                 # M1 验证：推一张最简卡
   python3 cli.py status                # 看设备状态
   python3 cli.py snapshot [out.png]    # 下载 renderInfo.current.image
-  python3 cli.py push <card_module>    # 推 cards/ 下某张卡（每张卡需实现 build()）
+  python3 cli.py push <card_module>    # 推 cards/ 下某张卡（每张卡需实现 build()），如 pet/liuyao/qimen/daily/status
+  python3 cli.py set-todo <文字>        # 设置今日一件事
   python3 cli.py auto-cards a b c      # 设置调度器轮换哪些卡（不含 qiantong，那是 NFC 触发的）
   python3 cli.py arm / disarm          # 打开/关闭自动轮换（默认关闭，需要 server.py 常驻跑）
 """
