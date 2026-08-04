@@ -86,12 +86,27 @@ Studio 的 `/api/approvals/:id/approve` 只做两件事：优先打
 127.0.0.1 / ::1 / 100.x（Tailscale）/ 192.168.x / 10.x。CSRF 防护只有
 `requireJsonContentType`。→ 默认配置下，本机任何程序零凭据即可读写 Studio 的 `/api/*`。
 
-**F9 · gateway 的 REST 面（`gateway/platforms/api_server.py`）。**
+**F9（2026-08-04 真机验证后修正，原文有错）· gateway 的 REST 面。**
 `/api/sessions`（含 `/{id}/messages`、`/fork`、`/chat`、`/chat/stream`）、
 `/api/jobs`、`/api/jobs/{id}`（GET/PATCH/DELETE）、`/api/jobs/{id}/pause|resume|run`、
-`/api/cron/fire`，以及一个返回 gateway state / connected platforms / PID / uptime 的
-状态接口。注意 gateway 的 API server 本身也是一个"平台适配器"。
-需 `~/.hermes/.env` 里 `API_SERVER_ENABLED=true` 才起。
+`/api/cron/fire` 都实测存在。**原文写的"一个返回 gateway state 的状态接口"不存在
+——`GET /api/status` 实测 404，这是没验证就写的推测，已被推翻。** 真实的只读状态面是：
+
+- `GET /health`：**不需要鉴权**，返回 `{"status":"ok","platform":"hermes-agent","version":"0.17.0"}`。
+  这个形状正好对应 buddy-bridge 那种"不带 token 只回健康检查"的设计，`providers/hermes.py`
+  判定 `available` 应该用这个端点。
+- `GET /health/detailed`：需鉴权，返回 `gateway_state` / `platforms{}` / `active_agents` /
+  `gateway_busy` / `pid`。
+
+**新增硬前提，原文完全没提到：`API_SERVER_KEY` 是必需的，回环地址也不放过。**
+只设 `API_SERVER_ENABLED=true` 起不来，实测报错：
+`Refusing to start: API_SERVER_KEY is required for the API server, including
+loopback-only binds on 127.0.0.1`。`providers/hermes.py` 需要一条读 key 的路径，
+照 `providers/buddy.py` 读 `~/.buddy-bridge/token` 的纪律：只读、不落库、不打日志。
+
+**验证点精度修正**：裸 `GET /api/jobs` 对 paused/disabled 的 job 返回 `{"jobs": []}`，
+必须加 `?include_disabled=true` 才能拿到全量，跟磁盘上 `cron/jobs.json` 对上。第 2 步
+写卡片逻辑时不能假设默认列表就是全量。
 
 **F10 · 插件分发完全不经过 Studio。** `hermes plugins install <owner>/<repo> --enable`
 直接从任意 GitHub 仓库装（Studio README 自己举的例子是
@@ -136,6 +151,55 @@ issue 侧：#16（2026-07-31 提）**4 分钟**被回应并关闭；#11、#14（
 全是软件消息通道（IM/邮件/推送），没有一个是**电子墨水屏 + NFC 物理回执**。
 homeassistant 最接近但方向相反（Hermes 控制家居，不是家居设备回执给 Hermes）。这个"生态
 里唯一一个"的判断基于 `plugins/platforms/` 的 20 个目录名，没有逐个读源码确认。
+
+### C. 第 1 步真机执行记录（2026-08-04，事实，非推测）
+
+**根因跟 F1 猜的不一样。** 不是 Homebrew 升级 python@3.14，是 **uv 管理的
+CPython 3.11.15 被 prune 掉了**：`venv/bin/python -> ~/.local/share/uv/python/
+cpython-3.11-macos-aarch64-none/bin/python3.11`（不存在），`pyvenv.cfg` 里
+`version_info = 3.11.15, uv = 0.10.12`。`~/.local/share/uv/python/` 当时只剩
+3.10.19 和 3.13.12，整个目录 7 月 22 日被重建过，3.11 那份被清掉了。
+
+**修法不是重建 venv，是 `uv python install 3.11.15`。** site-packages 里有
+3015 个 `*.cpython-311-darwin.so`（308MB，hermes_agent 0.17.0 editable），换
+3.12/3.13 重建等于全部重下重编。`uv python install 3.11.15` 只是把这个具体
+patch 版本的解释器重新装回 uv 的 python store（连带悬空软链一起修好），**venv
+目录本身一个字节没动**，`pip install -e .` 都不需要跑。修完验证：
+`venv/bin/python3 -V` → `3.11.15`；`hermes --version` → 能跑；
+`hermes plugins list` 列出 75 个插件，含 `plugins/platforms/` 全部 20 个，
+命名规则是 `<name>-platform`（比如 `telegram-platform`、`ntfy-platform`）——
+**证实第三节的插件应命名为 `quote0-platform`**。
+
+`curl 127.0.0.1:8642/api/jobs?include_disabled=true` 返回 3 个 job，跟磁盘
+`cron/jobs.json` 的 ID/name 集合完全一致，验证点 1 通过。
+
+**一个需要用户知道的副作用：一个 once 类型的 job 被验证过程弄成永久不可达。**
+启动 gateway 前，3 个 job 全部 `enabled=True` 且 `next_run_at` 停在 5 月（逾期未跑，
+gateway 一起来就会立刻触发）。为了不在验证阶段意外真的跑一个真实 agent 回合
+（其中 `agent-personas-continuation` 是 `no_agent=False`、带 1313 字 prompt 和
+工具权限的真实任务，workdir `~/agent-personas-dev`），验证前先 `hermes cron pause`
+了全部三个，验证后 `resume`。`enabled/state/paused_at` 都恢复原样，但 **resume 会
+重算 `next_run_at`**，而 `agent-personas-continuation` 是 once 类型，`run_at` 已经
+过去 77 天，远超调度器 `ONESHOT_GRACE_SECONDS = 120`（2 分钟）的宽限——**这个 job
+现在 `next_run_at = None`，永远不会被自动触发了**。另外两个（`daily-tracking`
+`weekly-optimization`）是循环任务，重算后的下次触发时间是 2026-08-05 10:00 和
+2026-08-09 14:00，正常，但目前没有任何东西让 gateway 常驻（`~/Library/LaunchAgents`
+下没有 hermes 相关项），到时间点 gateway 没在跑就还是不会触发。
+
+**这个副作用还没有处理，需要用户决定怎么办**：
+`hermes cron edit 2afe30ab98af` 改个新 `run_at` 重新排期，或
+`hermes cron run 2afe30ab98af` 手动触发一次让它"补跑"，或者干脆不管——
+这三个都是用户的决定，不是技术问题。
+
+**发现一个可能对第 5 步接触材料有用的线索（未验证，标注为推测）**：gateway 的
+路由表里有 `POST /v1/runs/{run_id}/approval` 和 `GET /v1/runs/{run_id}/events`，
+但 Hermes Studio 的 approve 按钮打的是 `/api/sessions/{sessionKey}/approve`——
+这条路径在 0.17 的路由表里根本不存在。如果这个观察在真实 pending approval 场景下
+复现，那是一个可复现的 Studio↔gateway 互操作 bug，比"能不能加个渠道"的功能请求
+更容易开启对话（帮对方修一个真 bug，而不是伸手要功能）。**这条没有被真实验证
+过——只是看路由表对不上，没有真的走一遍 approval 流程确认 Studio 那边会报错**，
+第 5 步动手前要先补这个验证，不能直接当结论用。这条发现对第七节「NFC 批准
+exec approval」的安全签字要求没有任何改变，仍然在本轮范围外。
 
 ---
 
@@ -223,10 +287,16 @@ homeassistant 最接近但方向相反（Hermes 控制家居，不是家居设�
 
 ## 四、步骤（按风险与信息增益排序，最不确定的在前）
 
-### 第 1 步：把本机 hermes-agent gateway 跑起来 —— 本轮最大的未知
+### 第 1 步：把本机 hermes-agent gateway 跑起来 —— 本轮最大的未知。**已完成，两个验证点都通过。**
 
 整份规划都建立在"gateway 能在这台机器上跑起来"之上，而 F1 显示 venv 已坏、
 Studio 根本没装。这一步的信息增益最高、且是所有后续步骤的地基，必须第一个做。
+
+**真实执行结果见第一节「C. 第 1 步真机执行记录」**——根因不是这里猜的
+Homebrew python 升级，是 uv 的 python store 被 prune；修法是
+`uv python install 3.11.15`，不是重建 venv。产生了一个需要用户决定的副作用
+（一个 once 类型的 cron job 变成永久不可达），已在 C 节详细记录，**没有自作主张
+处理，等用户决定**。
 
 - 修 venv：`~/.hermes/hermes-agent/venv` 的 python 链接失效，重建 venv 并
   `pip install -e .`；在 `~/.hermes/.env` 里设 `API_SERVER_ENABLED=true`；
