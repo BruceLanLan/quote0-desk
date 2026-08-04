@@ -1,23 +1,33 @@
 # quote0-desk
 
-一个跑在你自己电脑上的小服务，把 9 张自定义内容卡推到 [Quote/0](https://dot.mindreset.tech/developers) 墨水屏上——桌面箴言、六爻摇卦、奇门遁甲、Claude Code 用量、一只用真实行为养的 ASCII 宠物，等等。
+一个跑在你自己电脑上的小服务，把自定义内容卡推到 [Quote/0](https://dot.mindreset.tech/developers) 墨水屏上，并且让屏幕能被**贴一下手机就有反应**。
 
-跟官方社区里其他项目最大的不同：**贴一下 NFC 会闭环**。MindReset 官方生态里已经有 20+ 第三方项目（Home Assistant 集成、用量看板、MCP server……），但都是单向数据面板，推上去就完了。这个项目把 NFC 也用上了：贴一下手机 → 打开这张卡自己的回调地址 → 服务器执行一个动作（喂宠物、抽一签、打卡、翻下一句箴言）→ 立刻把新内容推回屏幕。屏幕出题，手机作答，屏幕再变——不只是显示器，是能被摸一下就有反应的桌面装置。
+跟官方社区里其他项目最大的不同：**贴一下 NFC 会闭环**。MindReset 官方生态里已经有 20+ 第三方项目（Home Assistant 集成、用量看板、MCP server……），但基本都是单向数据面板，推上去就完了。这个项目把 NFC 也用上了：贴一下手机 → 打开这张卡自己的回调地址 → 服务器执行一个动作（喂宠物、抽一签、打卡、翻下一句箴言）→ 立刻把新内容推回屏幕。屏幕出题，手机作答，屏幕再变——不只是显示器，是能被摸一下就有反应的桌面装置。
+
+## 贴一下会发生什么
 
 <p align="center">
-  <img src="docs/img/pet.png" width="45%" alt="屏上宠物卡：ASCII 造型，状态由真实活动信号驱动">
-  <img src="docs/img/liuyao.png" width="45%" alt="摇卦卡：六爻爻线 + 卦名判断">
+  <img src="docs/img/pet_pat_before_after.png" width="90%" alt="摸摸屏上宠物前后对比：左边空闲状态，贴一下 NFC 后右边变成开心状态">
+</p>
+
+左边是宠物平时的样子，右边是手机贴一下 `/t/pet_pat` 之后立刻推回屏幕的结果——这张图不是摆拍，是同一份渲染代码在两个真实状态下的输出，跟真机上看到的完全一致。
+
+## 内容卡长什么样
+
+<p align="center">
+  <img src="docs/img/pet_hero.png" width="45%" alt="屏上宠物卡：ASCII 造型，状态由真实活动信号驱动">
+  <img src="docs/img/liuyao_hero.png" width="45%" alt="摇卦卡：六爻爻线 + 卦名判断">
 </p>
 <p align="center">
-  <img src="docs/img/qimen.png" width="45%" alt="奇门遁甲卡：九宫格排盘">
-  <img src="docs/img/proverb.png" width="45%" alt="箴言机卡：Text API 默认排版">
+  <img src="docs/img/qimen_hero.png" width="45%" alt="奇门遁甲卡：九宫格排盘">
+  <img src="docs/img/proverb_hero.png" width="45%" alt="箴言机卡：Text API 默认排版">
 </p>
 
-## 先知道这一件事：只有 2 个槽位
+宠物卡的六个状态都是真实语义（不是随便画的表情包）：
 
-Quote/0 的官方 API 只能"更新"设备上已经存在的内容槽，不能凭空创建新内容项，而且**账号的 loop 槽位有硬上限（3 个）**。留 1 个给官方内容（天气、新闻之类）的话，你实际能用的就是 2 个：**Text API** + **Image API**。
-
-这不是限制卡的数量——9 张卡照样能做，调度器负责按时间分片轮流推。真正决定的是**同一时刻屏幕上能露出几张脸**：2 个槽意味着最多两种"当前显示"同时存在，其余的卡都在排队等下一轮。设计新卡之前先知道这一点，比事后发现槽位不够省事得多。详见 [`docs/DEVICE-FACTS.md`](docs/DEVICE-FACTS.md) 的完整实测记录。
+<p align="center">
+  <img src="docs/img/pet_states.png" width="90%" alt="宠物六态网格：睡着/空闲/工作中/等待批准/里程碑庆祝/被摸摸">
+</p>
 
 ## 快速开始
 
@@ -34,7 +44,7 @@ python3 cli.py push <card_name>    # 推 cards/ 下某张卡，比如 python3 cl
 python3 cli.py set-todo "今天要做的事"
 ```
 
-**前提**：先在 Dot App「内容工坊」里加好 **文本 API** 和 **图片 API** 两个内容槽，挂到设备循环任务里。加好之后不用告诉这边具体的 key——`GET /loop/list` 会自动发现，按 `type` 字段区分。
+**前提**：先在 Dot App「内容工坊」里加好 **文本 API** 和 **图片 API** 两个内容槽，挂到设备循环任务里。加好之后不用告诉这边具体的 key——`GET /loop/list` 会自动发现，按 `type` 字段区分。为什么只能加这两个、不能加第三个，见下面「设备约束」一节。
 
 ## NFC 回调服务
 
@@ -91,6 +101,8 @@ export NFC_BASE_URL=https://xxxx.trycloudflare.com
 | 时间胶囊 | `push capsule` | 本机 git 仓库历史里"一年前/一个月前/一周前的今天"提交 |
 | 实盘信标 | `push beacon` | 只读展示交易策略持仓 + 选股信号，不导入对应项目的代码/密钥 |
 
+新加一张卡该怎么接，见 [`docs/ADDING-A-CARD.md`](docs/ADDING-A-CARD.md)。
+
 ### 可选集成：buddy-bridge
 
 如果本机在跑 [buddy-bridge](https://github.com/anthropics/claude-desktop-buddy)
@@ -103,21 +115,11 @@ export NFC_BASE_URL=https://xxxx.trycloudflare.com
 
 日课/时辰盘（干支排盘卡）计划中但尚未实现。
 
-### 几张卡默认指向我自己的目录，换个人跑要改
+## 设备约束：只有 2 个可用槽位
 
-`providers/beacon.py`、`capsule.py`、`pet.py` 里有几个路径常量，指向我本机的项目位置：
+Quote/0 的官方 API 只能"更新"设备上已经存在的内容槽，不能凭空创建新内容项，而且**账号的 loop 槽位有硬上限（3 个）**。留 1 个给官方内容（天气、新闻之类）的话，你实际能用的就是 2 个：**Text API** + **Image API**。
 
-```python
-# providers/beacon.py
-LIGHTER_SCALPER_DIR = os.path.expanduser("~/lighter-scalper")
-STOCK_RADAR_DIR = os.path.expanduser("~/dev/stock-radar")
-
-# providers/capsule.py, providers/pet.py
-DEFAULT_REPOS = [os.path.expanduser("~/dev/quote0-desk"),
-                 os.path.expanduser("~/dev/pocket-prophet-dashboard")]
-```
-
-这几个目录在别人机器上大概率不存在——不是 bug，是"个人工具默认值"，代码本身会优雅降级（读不到就显示"暂无数据"，不会报错崩溃），但想让这几张卡显示有意义的内容，把这几个常量改成你自己的实际路径。
+这不是限制卡的数量——9 张卡照样能做，调度器负责按时间分片轮流推。真正决定的是**同一时刻屏幕上能露出几张脸**：2 个槽意味着最多两种"当前显示"同时存在，其余的卡都在排队等下一轮。设计新卡之前先知道这一点，比事后发现槽位不够省事得多。详见 [`docs/DEVICE-FACTS.md`](docs/DEVICE-FACTS.md) 的完整实测记录。
 
 ## 架构
 
@@ -146,6 +148,22 @@ python3 server.py             # 常驻运行，调度线程随 Flask 一起启�
 ```
 
 默认关闭，需要显式布防。也可以直接打 `GET/POST /settings` 查看或改配置（`auto_push_enabled` / `auto_push_interval_minutes` / `auto_push_cards`）。
+
+## 换个人跑：改这几个路径
+
+`providers/beacon.py`、`capsule.py`、`pet.py` 里有几个路径常量，指向我本机的项目位置：
+
+```python
+# providers/beacon.py
+LIGHTER_SCALPER_DIR = os.path.expanduser("~/lighter-scalper")
+STOCK_RADAR_DIR = os.path.expanduser("~/dev/stock-radar")
+
+# providers/capsule.py, providers/pet.py
+DEFAULT_REPOS = [os.path.expanduser("~/dev/quote0-desk"),
+                 os.path.expanduser("~/dev/pocket-prophet-dashboard")]
+```
+
+这几个目录在别人机器上大概率不存在——不是 bug，是"配置成你自己的路径"这一步，代码本身会优雅降级（读不到就显示"暂无数据"，不会报错崩溃），把这几个常量改成你自己的实际路径就能让这几张卡显示有意义的内容。
 
 ## 状态
 

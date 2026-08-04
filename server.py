@@ -112,7 +112,7 @@ def t_pet_pat():
     from providers.pet import pat
     state = pat()
     result = push_card("pet")
-    log.info("pet_pat -> mood=%s push=%s", state["mood"], result)
+    log.info("pet_pat -> state=%s push=%s", state["state"], result)
     return jsonify({"state": state, "push": result})
 
 
