@@ -69,6 +69,26 @@ export NFC_BASE_URL=https://xxxx.trycloudflare.com
 
 `nfc_base_url` 也可以直接写进 `config.json`（已在 `.gitignore` 里，不会进仓库），不用每次开新终端都重新 `export`。
 
+### 长期方案：开机自动拉起，隧道地址自动回写
+
+上面这套手动流程有个问题——终端一关、Mac 一重启，`server.py` 和 `cloudflared` 就都没了，NFC 直接失效。`scripts/install_launchd.sh` 把两者注册成 macOS 的 LaunchAgent：开机/登录自动拉起，进程意外退出也会被 `launchctl` 自动重启；`scripts/tunnel_daemon.sh` 每次拉起新隧道都会自动解析 cloudflared 打印的新地址、写回 `config.json` 的 `nfc_base_url`，不用人工抄地址。
+
+```bash
+cp .env.example .env
+# 编辑 .env，填真实的 DOT_API_KEY（.env 已在 .gitignore，不进仓库；
+# 密钥不写进 launchd 的 plist，那是明文 XML）
+
+bash scripts/install_launchd.sh   # 装两个 LaunchAgent 并立即拉起
+```
+
+安装脚本会打印日志路径；`data/tunnel_daemon.log` 里能看到当前生效的隧道地址。不想要了：
+
+```bash
+bash scripts/uninstall_launchd.sh
+```
+
+这个方案不需要注册 Cloudflare 账号，代价是隧道地址每次重启会变——但地址变了会自动写回配置，不需要人工干预，跟"固定域名的 named tunnel"（需要账号，地址永久不变）相比是有意选的权衡，见 `docs/PLAN-next-round.md`。
+
 | 路由 | 触发效果 |
 |---|---|
 | `/t/counter_tap` | M2 验证用的计数器，贴一下 +1 |
