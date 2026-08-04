@@ -46,6 +46,7 @@ CARDS = {
     "todo": "今日一件事",
     "capsule": "时间胶囊",
     "beacon": "实盘信标",
+    "hermes": "Hermes 任务台",
 }
 
 

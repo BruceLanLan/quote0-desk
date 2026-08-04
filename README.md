@@ -147,6 +147,7 @@ bash scripts/uninstall_launchd.sh
 | 今日一件事 | `push todo` / `set-todo "..."` | 单条每日承诺，NFC 打卡 |
 | 时间胶囊 | `push capsule` | 本机 git 仓库历史里"一年前/一个月前/一周前的今天"提交 |
 | 实盘信标 | `push beacon` | 只读展示交易策略持仓 + 选股信号，不导入对应项目的代码/密钥 |
+| Hermes 任务台 | `push hermes` | 只读展示本机 [hermes-agent](https://github.com/NousResearch/hermes-agent) gateway 的定时任务列表；可选集成，没装 Hermes 或 gateway 没起时显示"未接入"，见 [`docs/PLAN-hermes-integration.md`](docs/PLAN-hermes-integration.md) |
 
 新加一张卡该怎么接，见 [`docs/ADDING-A-CARD.md`](docs/ADDING-A-CARD.md)。日课/时辰盘（干支排盘卡）计划中但尚未实现。
 
