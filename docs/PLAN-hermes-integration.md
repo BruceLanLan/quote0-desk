@@ -316,18 +316,27 @@ Homebrew python 升级，是 uv 的 python store 被 prune；修法是
   跑起来后会持有用户的 `auth.json`。这一步开始前先说明清楚，照 `PLAN-next-round.md`
   对"仓库公开"的处理方式——不替用户按按钮。
 
-### 第 2 步：`providers/hermes.py` + `cards/hermes.py`（只读保底）
+### 第 2 步：`providers/hermes.py` + `cards/hermes.py`（只读保底）。**代码已完成，真机验证待补。**
 
 严格照 `providers/buddy.py` 的结构与纪律：`fetch()` 返回
 `{"available": True/False, ...}`，永不抛异常，超时 3 秒。读 **gateway 直连**
 （`127.0.0.1:8642`）而不是 Studio——少一层、不依赖 Studio 装没装、F8 那套鉴权模型也
-不用碰。卡片内容：活跃 crew / 下一个 cron job 与倒计时 / 今日 token 与成本。
+不用碰。
 
-- → **验证点**：gateway 停掉时 `fetch()` 返回 `available: False`、`cli.py push hermes`
-  照常出卡不报错；gateway 跑着时真机推一次，屏幕上的 job 名字与
-  `curl /api/jobs` 的返回一致。
-- → **卡住怎么办**：字段形状对不上就先只取 `/api/status`（更稳），把 jobs 那半降级成
-  "N 个任务在排"。这一步是保底，不允许它变成阻塞项。
+**跟原计划的两处出入**：一是卡片内容改成只展示任务列表（名字+schedule），
+没有做"活跃 crew / token 与成本"——那些字段没有在真机验证里出现过，F9 修正后
+只确认了 `/api/jobs` 和 `/health`，不假设没验证过的字段存在，等真拿到字段
+形状再加。二是先探 `/health`（免鉴权）区分"gateway 没开"和"没配
+`HERMES_API_KEY`"两种不可用原因，这是 F9 修正后新增的必要前置，原计划没有。
+
+- → **验证点（已做，mock 数据）**：`fetch()` 在 gateway 未启动时返回
+  `available: False, reason: "gateway_not_running"`；`cards/hermes.py` 用
+  三个真机验证时见过的真实 job（`agent-personas-continuation` 等）mock 出
+  `available: True` 的情况，渲染正常；job 缺 `name`/`schedule` 字段时防御式
+  降级，不崩溃。三条路径 `python3 -m py_compile` + 手动跑通。
+- → **验证点（未做，等用户）**：真机对着一个真的在跑的 gateway 推一次，
+  屏幕上的 job 名字与 `curl /api/jobs` 的返回一致——用户决定重装
+  hermes-agent，本轮没有可用于最终验证的真实实例，这条留到重装完成后补。
 
 ### 第 3 步：`hermes-quote0` 插件骨架 —— 最小可用的 send 路径
 
