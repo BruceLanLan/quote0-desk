@@ -112,7 +112,7 @@ bash scripts/install_launchd.sh   # 装两个 LaunchAgent 并立即拉起
 bash scripts/uninstall_launchd.sh
 ```
 
-这个方案不需要注册 Cloudflare 账号，代价是隧道地址每次重启会变——但地址变了会自动写回配置，不需要人工干预，跟"固定域名的 named tunnel"（需要账号，地址永久不变）相比是有意选的权衡，见 `docs/PLAN-next-round.md`。
+这个方案不需要注册 Cloudflare 账号，代价是隧道地址每次重启会变——但地址变了会自动写回配置，不需要人工干预，跟"固定域名的 named tunnel"（需要账号，地址永久不变）相比是有意选的权衡。
 
 ### NFC 路由一览
 
@@ -207,7 +207,14 @@ DEFAULT_REPOS = [os.path.expanduser("~/dev/quote0-desk"),
 
 ## 开发状态
 
-M0（真机契约验证）到 M6（调度器 + 隐私审查）已完成，NFC 反馈闭环（项目的核心假设）已真机验证通过，完整记录见 [`docs/DEVICE-FACTS.md`](docs/DEVICE-FACTS.md)。下一轮规划见 [`docs/PLAN-next-round.md`](docs/PLAN-next-round.md)。
+M0（真机契约验证）到 M6（调度器 + 隐私审查）已完成，NFC 反馈闭环（项目的核心假设）已真机验证通过，完整记录见 [`docs/DEVICE-FACTS.md`](docs/DEVICE-FACTS.md)。
+
+接下来打算做的：
+
+- 日课/时辰盘卡（干支排盘，底层引擎已有，缺渲染和 NFC 接入）
+- 测试 `shortcuts://` scheme 能不能用 NFC 直接触发 iOS 快捷指令
+- MCP wrapper，把具体卡片（喂宠物、抽签、打卡）暴露成可调用的工具，而不是再做一个通用文本/图片透传
+- 提交官方 co_create showcase
 
 ## License
 
