@@ -38,6 +38,7 @@ _counter_state = {"n": 0}
 # 不一定适合当 UI 标签）。
 CARDS = {
     "proverb": "箴言机",
+    "daily": "日课",
     "liuyao": "摇卦",
     "qimen": "奇门遁甲",
     "qiantong": "签筒",

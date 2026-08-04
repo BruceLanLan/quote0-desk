@@ -139,6 +139,7 @@ bash scripts/uninstall_launchd.sh
 | 卡 | 命令 | 说明 |
 |---|---|---|
 | 箴言机 | `push proverb` | 种子缓存里挑一句，NFC 换下一句；不接模型生成，避免"刷一次屏调一次模型" |
+| 日课 | `push daily` | 当前时刻的四柱干支（年月日时）+ 日干五行，复用奇门遁甲卡同一套排盘引擎 |
 | 摇卦 | `push liuyao` | `secrets` 真随机抛铜钱起卦 |
 | 奇门遁甲 | `push qimen` | 九宫格排盘 |
 | 签筒 | `push qiantong` | 摇卦/奇门二选一，NFC 触发版 |
@@ -181,7 +182,7 @@ quote0-desk/
 ## 自动轮换
 
 ```bash
-python3 cli.py auto-cards proverb status todo capsule beacon liuyao qimen pet
+python3 cli.py auto-cards proverb daily status todo capsule beacon liuyao qimen pet
 python3 cli.py arm            # 打开自动轮换
 python3 cli.py disarm         # 关闭
 python3 server.py             # 常驻运行，调度线程随 Flask 一起启动
@@ -211,7 +212,6 @@ M0（真机契约验证）到 M6（调度器 + 隐私审查）已完成，NFC �
 
 接下来打算做的：
 
-- 日课/时辰盘卡（干支排盘，底层引擎已有，缺渲染和 NFC 接入）
 - 测试 `shortcuts://` scheme 能不能用 NFC 直接触发 iOS 快捷指令
 - MCP wrapper，把具体卡片（喂宠物、抽签、打卡）暴露成可调用的工具，而不是再做一个通用文本/图片透传
 - 提交官方 co_create showcase
