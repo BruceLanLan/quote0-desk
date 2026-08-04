@@ -14,9 +14,10 @@
 
 - **NFC 真闭环**：贴一下手机，服务器执行动作，新内容立刻推回屏幕——不是"扫码看详情"，是屏幕本身会变。
 - **网页控制台**：不用背命令行，打开 `http://localhost:5252` 就能看设备状态、预览/推送每张卡、开关自动轮换。
-- **9 张内容卡开箱即用**：屏上宠物、六爻摇卦、奇门遁甲、签筒、桌面箴言机、今日打卡、时间胶囊、实盘信标、Claude Code 用量状态灯。
+- **内容卡开箱即用**：屏上宠物、六爻摇卦、奇门遁甲、签筒、日课、桌面箴言机、今日打卡、时间胶囊、实盘信标、Hermes 任务台、Claude Code 用量状态灯。
 - **宠物状态对齐官方语义**：ASCII 造型和状态机移植自 Anthropic 官方 [claude-desktop-buddy](https://github.com/anthropics/claude-desktop-buddy)，接入 [buddy-bridge](#可选集成buddy-bridge) 后用真实的 Claude Code 会话信号驱动，不是瞎写的心情值。
 - **开机自动拉起，隧道自愈**：`server.py` 和 NFC 公网隧道注册成 macOS 后台服务，进程死了自动重启，隧道地址变了自动回写配置，不用守着终端。
+- **MCP 工具**：`draw_hexagram()`、`pat_pet()`、`set_today_task(...)` 这类具体卡片工具，不是通用文本/图片透传，Claude 能直接操作 Quote/0。
 - **只用官方 REST API**：不刷机、不越权、不碰固件，Text API + Image API 两条推送路径覆盖全部卡片。
 
 ## 效果预览
@@ -206,6 +207,10 @@ DEFAULT_REPOS = [os.path.expanduser("~/dev/quote0-desk"),
 
 这几个目录在别人机器上大概率不存在——不是 bug，是"配置成你自己的路径"这一步，代码本身会优雅降级（读不到就显示"暂无数据"，不会报错崩溃），把这几个常量改成你自己的实际路径就能让这几张卡显示有意义的内容。
 
+## MCP：让 Claude 直接操作 Quote/0
+
+`mcp_server/` 是一个独立的 MCP server，把具体卡片暴露成工具（`draw_hexagram()`、`pat_pet()`、`set_today_task(...)` 这类），不是通用的文本/图片透传——那个方向 MindReset 生态里已经有好几个实现了。用法见 [`mcp_server/README.md`](mcp_server/README.md)；它需要 Python 3.10+（跟主项目的 3.9 环境分开跑），只是主项目 `/api/*` 接口的一个 HTTP 客户端，不侵入主项目本身。
+
 ## 开发状态
 
 M0（真机契约验证）到 M6（调度器 + 隐私审查）已完成，NFC 反馈闭环（项目的核心假设）已真机验证通过，完整记录见 [`docs/DEVICE-FACTS.md`](docs/DEVICE-FACTS.md)。
@@ -213,7 +218,6 @@ M0（真机契约验证）到 M6（调度器 + 隐私审查）已完成，NFC �
 接下来打算做的：
 
 - 测试 `shortcuts://` scheme 能不能用 NFC 直接触发 iOS 快捷指令
-- MCP wrapper，把具体卡片（喂宠物、抽签、打卡）暴露成可调用的工具，而不是再做一个通用文本/图片透传
 - 提交官方 co_create showcase
 
 ## License
