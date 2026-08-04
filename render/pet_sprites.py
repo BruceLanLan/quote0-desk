@@ -42,6 +42,7 @@ EYES = {
     "hungry": "×",   # ×  没精神
     "sad": "@",           # 委屈
     "alert": "◉",    # ◉  刚被摸过，精神
+    "waiting": "?",  # ?  有个操作在等你批准（buddy-bridge 信号）
 }
 
 
