@@ -13,6 +13,8 @@ h1{font-size:20px;margin:4px 0 14px}
 .field .hint{font-size:12px;color:#8e8e93;margin-top:4px;line-height:1.5}
 input[type=text]{width:100%;box-sizing:border-box;border:1px solid #e3ded5;border-radius:12px;background:#fbfaf7;color:#1d1d1f;font-size:15px;padding:12px}
 input[type=number]{width:100%;box-sizing:border-box;border:1px solid #e3ded5;border-radius:12px;background:#fbfaf7;color:#1d1d1f;font-size:15px;padding:12px}
+select{width:100%;box-sizing:border-box;border:1px solid #e3ded5;border-radius:12px;background:#fbfaf7;color:#1d1d1f;font-size:15px;padding:12px}
+textarea{width:100%;box-sizing:border-box;border:1px solid #e3ded5;border-radius:12px;background:#fbfaf7;color:#1d1d1f;font-size:14px;padding:12px;font-family:ui-monospace,Menlo,monospace;line-height:1.6;resize:vertical}
 .btn{width:100%;background:#111;color:#fff;padding:15px;text-align:center;border:0;border-radius:12px;font-size:17px;cursor:pointer;margin-top:8px}
 .msg{font-size:13px;text-align:center;padding:8px;border-radius:8px;margin-top:12px}
 .msg.ok{background:#e8f8ea;color:#248a3d}
@@ -63,6 +65,44 @@ input[type=number]{width:100%;box-sizing:border-box;border:1px solid #e3ded5;bor
   <div id="msg2"></div>
 </div>
 
+<div class="card">
+  <h1 style="font-size:17px;margin-top:0">屏上宠物</h1>
+  <div class="field">
+    <label>造型</label>
+    <select id="pet_species"></select>
+    <div class="hint">造型素材移植自官方 <code>anthropics/claude-desktop-buddy</code>（MIT）。换了之后下一次推送宠物卡就生效，不用重启服务。状态语义（睡着/空闲/工作中/等你批准/庆祝/被摸摸）所有造型都一样。</div>
+  </div>
+  <button class="btn" onclick="saveConfig()">保存</button>
+  <div id="msg3"></div>
+</div>
+
+<div class="card">
+  <h1 style="font-size:17px;margin-top:0">路径配置</h1>
+  <div class="hint" style="margin-bottom:8px">这几张卡要读本机其他项目的目录。默认值是作者本机的位置，在你的机器上多半不存在——读不到只会显示「暂无数据」，不会报错。填绝对路径或 <code>~/</code> 开头都行。</div>
+  <div class="field">
+    <label>实盘策略路径（实盘信标卡）</label>
+    <input type="text" id="beacon_lighter_dir" placeholder="~/lighter-scalper">
+    <div class="hint">只读这个目录下的 <code>data/positions.json</code> 和 <code>logs/*.log</code>，不碰任何密钥文件。</div>
+  </div>
+  <div class="field">
+    <label>选股信号路径（实盘信标卡）</label>
+    <input type="text" id="beacon_stock_radar_dir" placeholder="~/dev/stock-radar">
+    <div class="hint">只读这个目录下的 <code>scripts/.scan_state/*.json</code>。</div>
+  </div>
+  <div class="field">
+    <label>时间胶囊扫描的仓库列表</label>
+    <textarea id="capsule_repos" rows="3" placeholder="~/dev/quote0-desk"></textarea>
+    <div class="hint">一行一个 git 仓库路径。从这些仓库的历史里找「一年前的今天你在写什么」。留空＝恢复默认。</div>
+  </div>
+  <div class="field">
+    <label>宠物活跃度参考的仓库列表</label>
+    <textarea id="pet_repos" rows="3" placeholder="~/dev/quote0-desk"></textarea>
+    <div class="hint">一行一个。只在 buddy-bridge 守护进程没跑的时候才用得上——那时候靠「这些仓库最近有没有新 commit」来判断你是不是还醒着。留空＝恢复默认。</div>
+  </div>
+  <button class="btn" onclick="saveConfig()">保存</button>
+  <div id="msg4"></div>
+</div>
+
 <script>
 let CARDS = {};
 
@@ -75,41 +115,69 @@ async function loadCards(){
   ).join('');
 }
 
+// 造型选项从 /api/pet_species 拿，前端不硬编码一份——加造型只改
+// render/pet_sprites.py 一处，这个下拉框自动跟上。
+async function loadSpecies(){
+  const r = await fetch('/api/pet_species');
+  const {options} = await r.json();
+  document.getElementById('pet_species').innerHTML =
+    options.map(o => `<option value="${o.key}">${o.label}</option>`).join('');
+}
+
+const val = id => document.getElementById(id).value;
+const lines = id => val(id).split('\n').map(s => s.trim()).filter(Boolean);
+
 async function loadConfig(){
-  await loadCards();
+  await Promise.all([loadCards(), loadSpecies()]);
   const r = await fetch('/api/config');
   const cfg = await r.json();
   document.getElementById('nfc_base_url').value = cfg.nfc_base_url || '';
   document.getElementById('auto_push_enabled').checked = !!cfg.auto_push_enabled;
   document.getElementById('auto_push_interval_minutes').value = cfg.auto_push_interval_minutes || 10;
+  document.getElementById('pet_species').value = cfg.pet_species || 'duck';
+  document.getElementById('beacon_lighter_dir').value = cfg.beacon_lighter_dir || '';
+  document.getElementById('beacon_stock_radar_dir').value = cfg.beacon_stock_radar_dir || '';
+  document.getElementById('capsule_repos').value = (cfg.capsule_repos || []).join('\n');
+  document.getElementById('pet_repos').value = (cfg.pet_repos || []).join('\n');
   const active = new Set(cfg.auto_push_cards || []);
   document.querySelectorAll('.cardcheck').forEach(el => { el.checked = active.has(el.value); });
+}
+
+// 四张卡片各有一个「保存」按钮，但都提交整份表单——分开提交容易出现
+// 「改了 A 卡片、B 卡片的输入框内容被服务端的旧值覆盖回去」这种别扭情况。
+const MSG_SLOTS = ['msg', 'msg2', 'msg3', 'msg4'];
+
+function showMsg(html){
+  MSG_SLOTS.forEach(id => { document.getElementById(id).innerHTML = html; });
 }
 
 async function saveConfig(){
   const cards = Array.from(document.querySelectorAll('.cardcheck:checked')).map(el => el.value);
   const body = {
-    nfc_base_url: document.getElementById('nfc_base_url').value.trim(),
+    nfc_base_url: val('nfc_base_url').trim(),
     auto_push_enabled: document.getElementById('auto_push_enabled').checked,
-    auto_push_interval_minutes: Math.max(1, parseInt(document.getElementById('auto_push_interval_minutes').value) || 10),
+    auto_push_interval_minutes: Math.max(1, parseInt(val('auto_push_interval_minutes')) || 10),
     auto_push_cards: cards,
+    pet_species: val('pet_species'),
+    beacon_lighter_dir: val('beacon_lighter_dir').trim(),
+    beacon_stock_radar_dir: val('beacon_stock_radar_dir').trim(),
+    capsule_repos: lines('capsule_repos'),
+    pet_repos: lines('pet_repos'),
   };
-  const msg = document.getElementById('msg');
-  const msg2 = document.getElementById('msg2');
   try{
     const r = await fetch('/api/config', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body),
     });
+    const data = await r.json().catch(() => ({}));
     if(r.ok){
-      msg.innerHTML = '<div class="msg ok">已保存</div>';
-      msg2.innerHTML = '<div class="msg ok">已保存</div>';
+      showMsg('<div class="msg ok">已保存</div>');
     } else {
-      msg.innerHTML = '<div class="msg err">保存失败</div>';
+      showMsg(`<div class="msg err">保存失败：${data.hint || r.status}</div>`);
     }
   }catch(e){
-    msg.innerHTML = `<div class="msg err">网络错误：${e}</div>`;
+    showMsg(`<div class="msg err">网络错误：${e}</div>`);
   }
 }
 

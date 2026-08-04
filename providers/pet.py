@@ -12,7 +12,9 @@
   （BLE 桥接实时推送 session 状态），buddy-bridge 就是同一协议的本机
   实现。
 - **兜底——git commit**：没有 buddy-bridge（公开仓库的大多数使用者都
-  没有）就退回扫 `DEFAULT_REPOS` 的最新 commit 时间：commit 在窗口内
+  没有）就退回扫 `config.json` 里 `pet_repos` 列出的仓库（控制台设置页
+  可改，默认是这个项目自己 + pocket-prophet-dashboard）的最新 commit
+  时间：commit 在窗口内
   → `idle`；太久没提交 → `sleep`（官方语义是"桥接不在线"，我们没有
   真正的桥接信号时，直接借这个状态名而不是自己发明"饿了/难过"）。
 - **celebrate**：`tokens_today` 跨过一个新的 5 万整数关口，跟官方
@@ -30,6 +32,11 @@ Quote/0 没有加速度计，没有对应的物理动作可以触发）。
 `WAITING_ALERT_MINUTES` 才把 buddy-bridge 的 `msg`（正在等待的具体
 工具调用）显示到卡面上，见 `render/pet.py`。等待结束（`waiting`
 重新变 False）立刻清零，不会跨会话残留上一次的告警。
+
+**造型**：官方 18 种里移植了 7 种，见 `render/pet_sprites.py`；选哪一种由
+`config.json` 的 `pet_species` 决定（控制台设置页有下拉框），默认鸭子。
+判定「活跃 / 在跑 / 等审批」的那一段逻辑跟状态灯卡共用
+`providers/buddy.py` 的 `base_state()`，两张卡不会各自漂移。
 """
 from __future__ import annotations
 
@@ -39,16 +46,11 @@ import subprocess
 import time
 from datetime import datetime
 
-from providers.buddy import fetch as fetch_buddy
+import config
+from providers import buddy as buddy_provider
+from render.pet_sprites import DEFAULT_SPECIES, is_valid_species
 
 STATE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "pet_state.json")
-
-DEFAULT_REPOS = [
-    os.path.expanduser("~/dev/quote0-desk"),
-    os.path.expanduser("~/dev/pocket-prophet-dashboard"),
-]
-
-SPECIES = "duck"  # v1 先固定一种造型，选宠物是后续功能，不在这次范围内
 
 IDLE_WINDOW_HOURS = 6  # 没有 buddy-bridge 时，多久没提交就当"没连上"（sleep）
 HEART_GLOW_SECONDS = 600  # 摸摸之后 heart 状态维持多久
@@ -89,11 +91,22 @@ def _latest_commit_across(repos: list[str]) -> float | None:
     return max(timestamps) if timestamps else None
 
 
+def current_species() -> str:
+    """当前造型：以 `config.json` 的 `pet_species` 为准，非法/没配退回鸭子。
+
+    **不读 `data/pet_state.json`**——早期版本把 species 也写进状态文件、读的时候
+    优先取状态文件，结果是用户在设置页换了造型，状态文件里那份旧值会一直盖住
+    新配置，永远显示鸭子。配置是唯一权威，状态文件只存"时间戳类"的运行时状态。
+    """
+    species = str(config.load().get("pet_species") or "").strip()
+    return species if is_valid_species(species) else DEFAULT_SPECIES
+
+
 def scan(repos: list[str] = None) -> dict:
     """推进一次状态判定，返回渲染需要的全部字段。这个函数本身会读写
     状态文件，调用一次就会推进一次时间——不是纯查询。
     """
-    repos = repos or DEFAULT_REPOS
+    repos = repos or config.path_list_setting("pet_repos")
     raw = _load()
     now = time.time()
 
@@ -104,12 +117,12 @@ def scan(repos: list[str] = None) -> dict:
     celebrate_started_ts = raw.get("celebrate_started_ts", 0)
     waiting_since_ts = raw.get("waiting_since_ts", 0)
 
-    buddy = fetch_buddy()
+    buddy = buddy_provider.fetch()
+    # 判定逻辑跟状态灯卡共用 providers/buddy.py 的这一份，两边不各写一遍。
+    base_state = buddy_provider.base_state(buddy)
 
-    if buddy.get("available"):
-        waiting = buddy.get("waiting", 0) > 0
-        running = buddy.get("running", 0) > 0
-        base_state = "attention" if waiting else ("busy" if running else "idle")
+    if base_state is not None:
+        waiting = base_state == "attention"
         last_active_ts = now
         if waiting:
             waiting_since_ts = waiting_since_ts or now
@@ -146,9 +159,10 @@ def scan(repos: list[str] = None) -> dict:
     else:
         display_state = base_state
 
-    species = raw.get("species", SPECIES)
+    species = current_species()
     _save({
-        "species": species,
+        # species 故意不写进状态文件——见 current_species() 的说明，配置是唯一
+        # 权威，状态文件里存一份副本只会在用户换造型时反过来盖住新配置。
         "last_active_ts": last_active_ts,
         "last_seen_commit_ts": last_seen_commit_ts,
         "last_pat_ts": last_pat_ts,
