@@ -10,8 +10,20 @@
   `providers/pet.py`（sleep/idle/busy/attention 状态判定）和
   `cards/status.py`（活跃指示），可选
   增强、真机验证过、graceful degradation 到位。详见对应 commit。
+- **第 2 步（NFC 隧道长期方案）已执行，选的是选项 b**：`scripts/
+  install_launchd.sh` 把 `server.py` 和 `cloudflared` 隧道注册成两个
+  macOS LaunchAgent，`scripts/tunnel_daemon.sh` 自动解析新隧道地址并
+  回写 `config.json`。真机验证：装上后 `curl` 隧道公网地址命中
+  `/t/ping` 成功；`kill` 服务进程验证 `KeepAlive` 确实自动重启（新
+  PID，服务立即恢复响应）。真实的"重启 Mac 不做任何操作"级别的验证
+  还没做（这需要真的重启一次这台机器），但 RunAtLoad + KeepAlive 的
+  机制本身已经用"杀进程模拟异常退出"验证过会自动恢复。
+- **发散会上定的第一个新功能已落地**：`waiting` 超时告警——
+  buddy-bridge 报告的等待状态持续超过 5 分钟，宠物卡从"有个操作在等你
+  批准"升级成点名具体工具，逻辑测试（mock buddy fetch）和渲染测试都过。
 - 第 1 步（P3 `shortcuts://`）、第 3 步（日课卡）、第 5 步（MCP）、
-  第 6 步（showcase 提交）**仍未做**，见下方原始步骤。
+  第 6 步（showcase 提交）**仍未做**，见下方原始步骤。第 2 步解锁后，
+  发散清单里依赖 NFC 的功能（番茄钟、决策签筒、approve）可以开始排。
 
 ## 目标
 
@@ -65,19 +77,17 @@
    成本最低（一次贴的动作），信息增益直接决定"能不能做触发 iOS
    自动化"这个功能方向，排第一。
 
-2. **NFC 隧道的长期方案——当前项目最大的单点故障。**
-   两个选项二选一，跟用户确认后再动手：
-   - a) 注册一个 Cloudflare 账号，建named tunnel（固定域名，不随进程
-     重启失效）；
-   - b) 写一个 launchd plist，让 Mac 开机自动拉起
-     `cloudflared tunnel --url http://localhost:5252`，脚本解析新地址
-     写回 `config.json` 的 `nfc_base_url`。
-   → 验证点：重启这台 Mac，不做任何手动操作，贴一张卡的 NFC，屏幕正常
-   刷新。
-   → 若失败：回退到"每次开机手动跑 cloudflared + 手动更新配置"，至少
-   写清楚这个手动步骤，不能什么都不做。
-   这一步不做，后面加的所有卡/功能在重启后全部啞火，优先级实际上
-   高于新功能开发。
+2. **NFC 隧道的长期方案——当前项目最大的单点故障。已完成，选了 b。**
+   用户明确选择 b（不用注册 Cloudflare 账号，代价是地址会变但自动
+   回写）。已实现：`scripts/run_server.sh` + `scripts/tunnel_daemon.sh`
+   + `scripts/launchd/template.plist` + `scripts/install_launchd.sh`/
+   `uninstall_launchd.sh`，README 新增「长期方案」一节。
+   → 验证点（已做）：`launchctl list` 确认两个 LaunchAgent 都在跑；
+   `curl` 隧道公网地址命中 `/t/ping`；`kill` server 进程后
+   `KeepAlive` 在几秒内自动拉起新进程，`curl localhost:5252` 恢复响应。
+   → 验证点（未做）：真的重启一次 Mac，不做任何手动操作，贴 NFC 验证
+   屏幕正常刷新——这条需要用户配合重启机器，机制本身（RunAtLoad +
+   KeepAlive）已经用杀进程模拟异常退出验证过会自动恢复，不是纯理论。
 
 3. **日课/时辰盘卡。**
    `providers/daily.py`（新建，复用 `qimen_engine.py` 的干支排盘部分）
