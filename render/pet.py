@@ -7,7 +7,7 @@
 """
 from PIL import ImageDraw
 
-from render.base import BLACK, DARK_GRAY, WHITE, font, gray, hline, mono_font, new_canvas
+from render.base import BLACK, DARK_GRAY, WHITE, WIDTH, font, gray, hline, mono_font, new_canvas, truncate_to_width
 from render.pet_sprites import render_frame
 
 ART_FONT_SIZE = 18
@@ -27,7 +27,11 @@ def render(state: dict):
     img = new_canvas(bg=WHITE)
     draw = ImageDraw.Draw(img)
 
-    header = STATE_LABEL.get(state["state"], state["state"])
+    if state.get("waiting_alert") and state.get("waiting_tool"):
+        header = f"等你批准：{state['waiting_tool']}（已等 {state['waiting_minutes']} 分钟）"
+    else:
+        header = STATE_LABEL.get(state["state"], state["state"])
+    header = truncate_to_width(draw, header, font(14), WIDTH - 12)
     draw.text((6, 2), header, font=font(14), fill=gray(BLACK))
     hline(draw, 18)
 
