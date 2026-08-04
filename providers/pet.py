@@ -1,20 +1,28 @@
-"""屏上宠物：状态由真实行为驱动，不是手点喂食。
+"""屏上宠物：状态语义直接对齐官方 anthropics/claude-desktop-buddy
+（sleep/idle/busy/attention/celebrate/heart），不是自己发明的一套
+"饥饿值"——用户点名要把宠物这块"融合"进官方项目，这里连状态命名和触发
+条件都跟官方源码保持一致，只是把"连续动画 + BLE 实时推送"换成"静态
+墨水屏 + 定期/事件触发推送"。
 
-- **优先信号——buddy-bridge**：如果本机在跑 `~/buddy-bridge`（另一个本机
-  项目，用 Claude Code hook 实时上报会话状态），直接读它的 `running`/
-  `waiting` 字段——真在干活 = 喂食，等审批 = 一个新的"等待"表情。这比
-  "扫两个仓库的 git commit 时间"准得多，commit 只在提交那一刻才有信号，
-  buddy-bridge 是连续的。
-- **兜底信号——commit**：buddy-bridge 没在跑（公开仓库的其他使用者大概率
-  没有这个守护进程）就退回原来的逻辑：`DEFAULT_REPOS` 里出现比上次记录
-  更新的 commit，判定为"喂过了"，饥饿清零。
-- **长时间没有任何信号 = 饿**：饥饿值按距上次喂食的真实小时数线性增长。
-- **NFC 贴一下 = 摸摸**：不影响饥饿，只给一次性的"精神"反应（眼神变化 +
-  一句话），持续到下次 scan 判定超时为止——这是即时互动，跟"喂食"这个
-  需要真实行为的动作分开，别把两件事混成一件事。
+信号源：
 
-没有做"测试跑挂 = 不高兴"：要在任意仓库里可靠感知测试失败，得在每个项目
-装 hook，这已经超出这张卡本身的范围，先不做，需要再拉出来单独设计。
+- **优先——buddy-bridge**：本机 `~/buddy-bridge` 守护进程在跑，直接用
+  它的 `running`/`waiting` 实时信号：`waiting>0` → `attention`；
+  `running>0` → `busy`；都没有 → `idle`。这是官方项目本来的信号形状
+  （BLE 桥接实时推送 session 状态），buddy-bridge 就是同一协议的本机
+  实现。
+- **兜底——git commit**：没有 buddy-bridge（公开仓库的大多数使用者都
+  没有）就退回扫 `DEFAULT_REPOS` 的最新 commit 时间：commit 在窗口内
+  → `idle`；太久没提交 → `sleep`（官方语义是"桥接不在线"，我们没有
+  真正的桥接信号时，直接借这个状态名而不是自己发明"饿了/难过"）。
+- **celebrate**：`tokens_today` 跨过一个新的 5 万整数关口，跟官方
+  "每 50K tokens 升一级"的触发点一致。
+- **heart**：NFC 贴一下摸摸（`/t/pet_pat`）。官方语义是"5 秒内被批准
+  的奖励反应"，跟"被摸摸"是同一种"我很开心"，共用一个状态；以后接上
+  "贴一下批准工具调用"功能时，快速批准也会触发这个状态，不用新增素材。
+
+没有移植的官方状态：`dizzy`（原触发条件是摇晃设备的加速度计读数，
+Quote/0 没有加速度计，没有对应的物理动作可以触发）。
 """
 from __future__ import annotations
 
@@ -35,8 +43,10 @@ DEFAULT_REPOS = [
 
 SPECIES = "duck"  # v1 先固定一种造型，选宠物是后续功能，不在这次范围内
 
-HUNGER_PER_HOUR = 6  # 饥饿值增速：约 16.7 小时不喂食到满
-PAT_GLOW_SECONDS = 600  # 摸摸之后"精神"反应维持多久，过了就回归按饥饿值判断的心情
+IDLE_WINDOW_HOURS = 6  # 没有 buddy-bridge 时，多久没提交就当"没连上"（sleep）
+HEART_GLOW_SECONDS = 600  # 摸摸之后 heart 状态维持多久
+CELEBRATE_GLOW_SECONDS = 900  # 里程碑庆祝维持多久
+CELEBRATE_STEP_TOKENS = 50_000  # 跟官方一致：每 50K tokens 一个里程碑
 
 
 def _load() -> dict:
@@ -71,78 +81,75 @@ def _latest_commit_across(repos: list[str]) -> float | None:
     return max(timestamps) if timestamps else None
 
 
-def _mood_from_hunger(hunger: float) -> str:
-    if hunger < 25:
-        return "happy"
-    if hunger < 60:
-        return "neutral"
-    if hunger < 90:
-        return "hungry"
-    return "sad"
-
-
 def scan(repos: list[str] = None) -> dict:
-    """按真实经过时间推进饥饿值，检测新 commit 就喂食，返回渲染需要的全部
-    字段。这个函数本身会读写状态文件，调用一次就会推进一次时间——不是纯
-    查询，是"喂时间给宠物"的那个动作。
+    """推进一次状态判定，返回渲染需要的全部字段。这个函数本身会读写
+    状态文件，调用一次就会推进一次时间——不是纯查询。
     """
     repos = repos or DEFAULT_REPOS
-    state = _load()
+    raw = _load()
     now = time.time()
 
-    last_fed_ts = state.get("last_fed_ts", now)
-    last_seen_commit_ts = state.get("last_seen_commit_ts", 0)
-    hunger = state.get("hunger", 20)
-    last_pat_ts = state.get("last_pat_ts", 0)
+    last_active_ts = raw.get("last_active_ts", now)
+    last_seen_commit_ts = raw.get("last_seen_commit_ts", 0)
+    last_pat_ts = raw.get("last_pat_ts", 0)
+    last_celebrated_milestone = raw.get("last_celebrated_milestone", 0)
+    celebrate_started_ts = raw.get("celebrate_started_ts", 0)
 
     buddy = fetch_buddy()
-    buddy_working = buddy.get("available") and buddy.get("running", 0) > 0
-    buddy_waiting = buddy.get("available") and buddy.get("waiting", 0) > 0
 
-    latest_commit = _latest_commit_across(repos)
-    fed_by_commit = latest_commit is not None and latest_commit > last_seen_commit_ts
-    fed_just_now = fed_by_commit or buddy_working
-    if fed_by_commit:
-        last_seen_commit_ts = latest_commit
-    if fed_just_now:
-        last_fed_ts = now
-        hunger = 0
+    if buddy.get("available"):
+        waiting = buddy.get("waiting", 0) > 0
+        running = buddy.get("running", 0) > 0
+        base_state = "attention" if waiting else ("busy" if running else "idle")
+        last_active_ts = now
     else:
-        hours_since_fed = max(0.0, (now - last_fed_ts) / 3600)
-        hunger = min(100.0, hours_since_fed * HUNGER_PER_HOUR)
+        waiting = False
+        latest_commit = _latest_commit_across(repos)
+        if latest_commit is not None and latest_commit > last_seen_commit_ts:
+            last_seen_commit_ts = latest_commit
+            last_active_ts = now
+        hours_idle = max(0.0, (now - last_active_ts) / 3600)
+        base_state = "sleep" if hours_idle > IDLE_WINDOW_HOURS else "idle"
 
-    state = {
-        "species": state.get("species", SPECIES),
-        "hunger": hunger,
-        "last_fed_ts": last_fed_ts,
+    tokens_today = buddy.get("tokens_today", 0) if buddy.get("available") else 0
+    milestone = tokens_today // CELEBRATE_STEP_TOKENS
+    if milestone > last_celebrated_milestone:
+        last_celebrated_milestone = milestone
+        celebrate_started_ts = now
+
+    celebrating = bool(celebrate_started_ts) and (now - celebrate_started_ts) < CELEBRATE_GLOW_SECONDS
+    hearting = bool(last_pat_ts) and (now - last_pat_ts) < HEART_GLOW_SECONDS
+
+    if waiting:
+        display_state = "attention"
+    elif celebrating:
+        display_state = "celebrate"
+    elif hearting:
+        display_state = "heart"
+    else:
+        display_state = base_state
+
+    species = raw.get("species", SPECIES)
+    _save({
+        "species": species,
+        "last_active_ts": last_active_ts,
         "last_seen_commit_ts": last_seen_commit_ts,
         "last_pat_ts": last_pat_ts,
-    }
-    _save(state)
-
-    patted_recently = (now - last_pat_ts) < PAT_GLOW_SECONDS
-    if buddy_waiting:
-        mood = "waiting"  # 一个操作在等审批，跟饥饿状态无关，优先显示
-    elif patted_recently:
-        mood = "alert"
-    else:
-        mood = _mood_from_hunger(hunger)
+        "last_celebrated_milestone": last_celebrated_milestone,
+        "celebrate_started_ts": celebrate_started_ts,
+    })
 
     return {
-        "species": state["species"],
-        "hunger": round(hunger),
-        "mood": mood,
-        "fed_just_now": fed_just_now,
+        "species": species,
+        "state": display_state,
         "frame_index": int(now // 5) % 3,
-        "last_fed_label": datetime.fromtimestamp(last_fed_ts).strftime("%m-%d %H:%M"),
+        "last_active_label": datetime.fromtimestamp(last_active_ts).strftime("%m-%d %H:%M"),
     }
 
 
 def pat() -> dict:
-    """NFC 贴一下：摸摸它，触发一次性的"精神"反应，不改变饥饿值。"""
-    state = _load()
-    state["last_pat_ts"] = time.time()
-    if "hunger" not in state:
-        state["hunger"] = 20
-    _save(state)
+    """NFC 贴一下：摸摸它，触发 heart 状态一段时间。"""
+    raw = _load()
+    raw["last_pat_ts"] = time.time()
+    _save(raw)
     return scan()

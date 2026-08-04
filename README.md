@@ -86,7 +86,7 @@ export NFC_BASE_URL=https://xxxx.trycloudflare.com
 | 奇门遁甲 | `push qimen` | 九宫格排盘 |
 | 签筒 | `push qiantong` | 摇卦/奇门二选一，NFC 触发版 |
 | Claude Code 状态灯 | `push status` | 优先显示真实账号配额（5h/7d 用量百分比），拿不到就退回本地转录文件估算的今日 token/成本；活跃指示优先读 buddy-bridge（见下），没有就退回转录文件 mtime |
-| 屏上宠物 | `push pet` | ASCII 造型（移植自 claude-buddy），状态由真实行为驱动：buddy-bridge 在跑就用它的 running/waiting 信号，没有就退回 commit = 喂食、长时间不动 = 饿；NFC 贴一下 = 摸摸 |
+| 屏上宠物 | `push pet` | ASCII 造型和状态语义移植自官方 [anthropics/claude-desktop-buddy](https://github.com/anthropics/claude-desktop-buddy)（MIT）：sleep/idle/busy/attention/celebrate/heart，信号优先用 buddy-bridge 的实时 running/waiting，没有就退回扫 commit 时间；NFC 贴一下 = 摸摸（heart） |
 | 今日一件事 | `push todo` / `set-todo "..."` | 单条每日承诺，NFC 打卡 |
 | 时间胶囊 | `push capsule` | 本机 git 仓库历史里"一年前/一个月前/一周前的今天"提交 |
 | 实盘信标 | `push beacon` | 只读展示交易策略持仓 + 选股信号，不导入对应项目的代码/密钥 |
