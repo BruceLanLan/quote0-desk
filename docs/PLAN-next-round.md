@@ -10,14 +10,16 @@
   `providers/pet.py`（sleep/idle/busy/attention 状态判定）和
   `cards/status.py`（活跃指示），可选
   增强、真机验证过、graceful degradation 到位。详见对应 commit。
-- **第 2 步（NFC 隧道长期方案）已执行，选的是选项 b**：`scripts/
-  install_launchd.sh` 把 `server.py` 和 `cloudflared` 隧道注册成两个
-  macOS LaunchAgent，`scripts/tunnel_daemon.sh` 自动解析新隧道地址并
-  回写 `config.json`。真机验证：装上后 `curl` 隧道公网地址命中
-  `/t/ping` 成功；`kill` 服务进程验证 `KeepAlive` 确实自动重启（新
-  PID，服务立即恢复响应）。真实的"重启 Mac 不做任何操作"级别的验证
-  还没做（这需要真的重启一次这台机器），但 RunAtLoad + KeepAlive 的
-  机制本身已经用"杀进程模拟异常退出"验证过会自动恢复。
+- **第 2 步（NFC 隧道长期方案）已执行，选的是选项 b，全链路已验证通过**：
+  `scripts/install_launchd.sh` 把 `server.py` 和 `cloudflared` 隧道注册
+  成两个 macOS LaunchAgent，`scripts/tunnel_daemon.sh` 自动解析新隧道
+  地址并回写 `config.json`。真机验证：`kill` 服务进程确认 `KeepAlive`
+  自动重启（新 PID，服务立即恢复响应）；用户提供新的 `DOT_API_KEY` 写入
+  `.env` 后，`curl` 公网隧道地址命中 `/t/counter_tap` 拿到
+  `{"n": 1, "push": {"ok": true, ...}}`——这条验证走了完整链路（公网
+  隧道 → Flask → Dot 云 API → 设备切换文本内容），不再只是"机制验证过，
+  业务没跑通"。真实的"重启 Mac 不做任何操作"级别的验证还没做（需要用户
+  配合真的重启一次机器），但功能链路本身已经端到端跑通。
 - **发散会上定的第一个新功能已落地**：`waiting` 超时告警——
   buddy-bridge 报告的等待状态持续超过 5 分钟，宠物卡从"有个操作在等你
   批准"升级成点名具体工具，逻辑测试（mock buddy fetch）和渲染测试都过。
@@ -83,8 +85,10 @@
    + `scripts/launchd/template.plist` + `scripts/install_launchd.sh`/
    `uninstall_launchd.sh`，README 新增「长期方案」一节。
    → 验证点（已做）：`launchctl list` 确认两个 LaunchAgent 都在跑；
-   `curl` 隧道公网地址命中 `/t/ping`；`kill` server 进程后
-   `KeepAlive` 在几秒内自动拉起新进程，`curl localhost:5252` 恢复响应。
+   `kill` server 进程后 `KeepAlive` 在几秒内自动拉起新进程，
+   `curl localhost:5252` 恢复响应；`curl` 隧道公网地址命中
+   `/t/counter_tap` 拿到 `{"n": 1, "push": {"ok": true}}`——全链路
+   （公网隧道 → Flask → Dot 云 API → 设备切内容）端到端验证通过。
    → 验证点（未做）：真的重启一次 Mac，不做任何手动操作，贴 NFC 验证
    屏幕正常刷新——这条需要用户配合重启机器，机制本身（RunAtLoad +
    KeepAlive）已经用杀进程模拟异常退出验证过会自动恢复，不是纯理论。
