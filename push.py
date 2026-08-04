@@ -10,10 +10,16 @@ import importlib
 import dot
 
 
-def push_card(card_name: str) -> dict:
+def render_card(card_name: str) -> dict:
+    """跟 push_card 一样跑卡片的 build()，但不推送——控制台的"预览"按钮
+    用这个，看内容不消耗一次真实的设备推送/API 调用。"""
     mod = importlib.import_module(f"cards.{card_name}")
+    return mod.build()
+
+
+def push_card(card_name: str) -> dict:
+    result = render_card(card_name)
     d = dot.resolve_device_id()
-    result = mod.build()
     if "png" in result:
         return dot.push_image(d, image=result["png"], link=result.get("link"), refresh_now=True,
                                task_alias=result.get("alias", card_name))
