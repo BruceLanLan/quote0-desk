@@ -24,6 +24,7 @@ import dot
 import scheduler
 from providers.todo import set_task, toggle_done
 from push import push_card, render_card
+from render import pet_sprites
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("quote0-desk")
@@ -73,6 +74,20 @@ def settings_page():
 @app.route("/api/cards")
 def api_cards():
     return jsonify(CARDS)
+
+
+@app.route("/api/pet_species")
+def api_pet_species():
+    """可选的宠物造型（只读）。设置页的下拉框用这个接口填选项，前端不硬编码
+    一份造型列表——加造型只改 render/pet_sprites.py 一处，UI 自动跟上。
+
+    返回数组而不是对象：Flask 的 jsonify 会按 key 排序，用对象的话下拉框会被
+    强制排成字母序，默认的鸭子掉到中间去。数组保得住 SPECIES_LABELS 的顺序。
+    """
+    return jsonify({
+        "options": [{"key": k, "label": v} for k, v in pet_sprites.SPECIES_LABELS.items()],
+        "default": pet_sprites.DEFAULT_SPECIES,
+    })
 
 
 @app.route("/api/status")
@@ -142,20 +157,45 @@ def api_scheduler_status():
     return jsonify(scheduler.get_state())
 
 
+def _clean_path_list(value) -> list[str]:
+    """路径列表：接受数组，也接受设置页 textarea 里一行一个的字符串。空行丢掉；
+    整体为空就存空列表，config.path_list_setting() 会退回默认值。"""
+    if isinstance(value, str):
+        value = value.splitlines()
+    if not isinstance(value, list):
+        return []
+    return [str(p).strip() for p in value if str(p).strip()]
+
+
+# GET 会原样回吐这些字段（值取 config.load()，即"配置里的原始值"而不是展开
+# 后的绝对路径——设置页要把用户填的 `~/...` 原样显示回去）。敏感项不在这里：
+# device_id 是设备序列号（更推荐走环境变量），`_auto_push_last_card` 是调度器
+# 内部游标，两个都不该给前端编辑。API Key 根本不在 config.json 里。
+_EXPOSED_KEYS = [
+    "nfc_base_url",
+    "auto_push_enabled", "auto_push_interval_minutes", "auto_push_cards",
+    "weather_city", "enabled_cards",
+    "proverb_daily_generations", "proverb_cache_min",
+    "pet_species", "pet_repos",
+    "capsule_repos",
+    "beacon_lighter_dir", "beacon_stock_radar_dir",
+]
+
+
 @app.route("/api/config", methods=["GET", "POST"])
 def api_config():
-    """调度器设置：布防开关 / 轮换间隔 / 参与轮换的卡列表 / NFC 回调地址。
+    """控制台设置页的读写口：调度器（布防开关 / 轮换间隔 / 参与轮换的卡列表）、
+    NFC 回调地址、宠物造型、各卡要扫的本机路径、箴言缓存参数。
     默认未布防，见 scheduler.py 顶部注释——不要在这里改成默认开启。
+
+    POST 只认 `_EXPOSED_KEYS` 里的字段，其余一律忽略——前端多发了什么字段
+    不会被顺手写进 config.json。
     """
     if request.method == "GET":
         cfg = config.load()
-        return jsonify({
-            "auto_push_enabled": cfg.get("auto_push_enabled", False),
-            "auto_push_interval_minutes": cfg.get("auto_push_interval_minutes", 10),
-            "auto_push_cards": cfg.get("auto_push_cards", []),
-            "nfc_base_url": cfg.get("nfc_base_url", ""),
-            "scheduler_state": scheduler.get_state(),
-        })
+        resp = {k: cfg.get(k, config.DEFAULTS.get(k)) for k in _EXPOSED_KEYS}
+        resp["scheduler_state"] = scheduler.get_state()
+        return jsonify(resp)
 
     body = request.get_json(force=True, silent=True) or {}
     updates = {}
@@ -165,9 +205,33 @@ def api_config():
         updates["auto_push_interval_minutes"] = max(scheduler.MIN_INTERVAL_MINUTES,
                                                       int(body["auto_push_interval_minutes"]))
     if "auto_push_cards" in body:
-        updates["auto_push_cards"] = list(body["auto_push_cards"])
+        updates["auto_push_cards"] = [c for c in body["auto_push_cards"] if c in CARDS]
+    if "enabled_cards" in body:
+        updates["enabled_cards"] = [c for c in body["enabled_cards"] if c in CARDS]
     if "nfc_base_url" in body:
         updates["nfc_base_url"] = str(body["nfc_base_url"]).strip()
+    if "weather_city" in body:
+        updates["weather_city"] = str(body["weather_city"]).strip()
+    if "proverb_daily_generations" in body:
+        updates["proverb_daily_generations"] = max(1, int(body["proverb_daily_generations"]))
+    if "proverb_cache_min" in body:
+        updates["proverb_cache_min"] = max(0, int(body["proverb_cache_min"]))
+    if "pet_species" in body:
+        # 在 API 层就拒绝非法造型。render_frame() 确实有"不认识就画鸭子"的兜底，
+        # 但那是渲染时的自保，不该拿来当输入校验——存了个错值再悄悄画成鸭子，
+        # 用户只会以为"选了没生效"，排查不到原因。
+        species = str(body["pet_species"]).strip()
+        if not pet_sprites.is_valid_species(species):
+            return jsonify({"ok": False,
+                            "hint": f"未知宠物造型：{species}",
+                            "options": sorted(pet_sprites.SPECIES)}), 400
+        updates["pet_species"] = species
+    for key in ("pet_repos", "capsule_repos"):
+        if key in body:
+            updates[key] = _clean_path_list(body[key])
+    for key in ("beacon_lighter_dir", "beacon_stock_radar_dir"):
+        if key in body:
+            updates[key] = str(body[key]).strip()
     cfg = config.update(**updates)
     return jsonify({"ok": True, "config": cfg})
 
