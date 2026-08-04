@@ -25,7 +25,10 @@ echo "[tunnel_daemon] $(date '+%F %T') 启动，目标 $LOCAL_URL" >>"$LOG"
   echo "$line" >>"$LOG"
   url=$(echo "$line" | grep -oE 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' || true)
   if [ -n "$url" ]; then
-    "$PYTHON_BIN" -c "import config; config.update(nfc_base_url='$url')"
+    # $url 传成 argv 而不是拼进 -c 的代码字符串——避免 shell 插值直接
+    # 变成可执行的 Python 代码（即便 grep 已经限定了 URL 的形状，公开
+    # 仓库上这种"拼字符串成代码"的写法本身就不该有）。
+    "$PYTHON_BIN" -c "import sys, config; config.update(nfc_base_url=sys.argv[1])" "$url"
     echo "[tunnel_daemon] $(date '+%F %T') nfc_base_url -> $url" >>"$LOG"
   fi
 done
