@@ -239,8 +239,11 @@ def api_config():
     if "auto_push_enabled" in body:
         updates["auto_push_enabled"] = bool(body["auto_push_enabled"])
     if "auto_push_interval_minutes" in body:
-        updates["auto_push_interval_minutes"] = max(scheduler.MIN_INTERVAL_MINUTES,
-                                                      int(body["auto_push_interval_minutes"]))
+        try:
+            interval = int(body["auto_push_interval_minutes"])
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "hint": "auto_push_interval_minutes 必须是数字"}), 400
+        updates["auto_push_interval_minutes"] = max(scheduler.MIN_INTERVAL_MINUTES, interval)
     if "auto_push_cards" in body:
         updates["auto_push_cards"] = [c for c in body["auto_push_cards"] if c in CARDS]
     if "nfc_base_url" in body:
