@@ -32,6 +32,7 @@ DEFAULTS = {
     "capsule_repos": ["~/dev/quote0-desk", "~/dev/pocket-prophet-dashboard"],
     "beacon_lighter_dir": "~/lighter-scalper",
     "beacon_stock_radar_dir": "~/dev/stock-radar",
+    "pomodoro_minutes": 25,  # 番茄钟一个专注块的时长
 }
 
 
