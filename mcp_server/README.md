@@ -56,9 +56,11 @@ python3 server.py   # 或者已经按 README 装了 launchd 常驻服务
 | `set_today_task(task)` | 设置今日一件事并推送 |
 | `toggle_today_task()` | 切换今日任务完成状态 |
 | `board_note(label, value)` | 在状态板上记一行（同 label 覆盖，最多 5 行），立刻推送 |
+| `cast_with_question(question)` | 带问题起一卦，7 天后自动提醒回看"应了吗" |
+| `oracle_verdict(answer)` | 回答最近一次到期的应期复盘（"yes"/"no"） |
 | `get_device_status()` | 只读查看设备在线状态 |
 | `list_cards()` | 列出全部内容卡 |
 
-真机验证过：`draw_hexagram`/`push_daily`/`set_today_task`/`toggle_today_task`/`board_note` 都推过真实设备并截图核对过内容一致；quote0-desk 主服务未启动时，工具会返回明确的"连不上 quote0-desk"提示，不是裸的连接异常堆栈。
+真机验证过：`draw_hexagram`/`push_daily`/`set_today_task`/`toggle_today_task`/`board_note`/`cast_with_question`/`oracle_verdict` 都推过真实设备并截图核对过内容一致；quote0-desk 主服务未启动时，工具会返回明确的"连不上 quote0-desk"提示，不是裸的连接异常堆栈。
 
 **`board_note` 的参数是必填的，这是有意的设计**：`label`/`value` 都没有默认值，信息不全时模型会自己开口问（比如你只说"记一下喝奶"没说多少毫升，模型会追问），不需要 quote0-desk 这边写任何"追问缺失信息"的代码——这是对话式 MCP 通道相对 Hermes 那条自由文本通道的一个结构性优势：Hermes 那边 agent 只能自己拼一段文本再靠我们反向解析，脆弱且不知道信息全不全；MCP 这边工具签名本身就是一份契约，模型必须填满才能调用。
