@@ -1,0 +1,33 @@
+name: quote0-platform
+label: Quote/0
+kind: platform
+version: 0.1.0
+description: >
+  Quote/0 e-ink desk device adapter for Hermes Agent. Sends agent messages
+  and cron job results to a physical 296x152 e-ink display via the local
+  quote0-desk service (https://github.com/BruceLanLan/quote0-desk), which
+  owns the actual Dot cloud API credentials.
+
+  Outbound-only — Quote/0 has no chat interface, so this adapter never
+  receives inbound messages. This adapter never sets a ``link`` field on
+  outgoing content; quote0-desk's own card layer generates (or omits) the
+  NFC callback link, so a prompt-injected agent cannot turn a physical tap
+  into a phishing redirect. Every message sent through this channel is
+  signed "Hermes Agent" on-screen by quote0-desk's card, not by anything
+  this adapter provides, so the device always shows unambiguously where
+  content came from.
+author: BruceLanLan
+requires_env:
+  - name: QUOTE0_ENABLED
+    description: "Set to 'true' to enable the Quote/0 e-ink adapter"
+    prompt: "Enable Quote/0 adapter? (true/false)"
+    password: false
+optional_env:
+  - name: QUOTE0_DESK_URL
+    description: "quote0-desk service base URL (default: http://127.0.0.1:5252)"
+    prompt: "quote0-desk URL (or empty for default)"
+    password: false
+  - name: QUOTE0_HOME_CHANNEL
+    description: "Set to any non-empty value to enable cron deliver=quote0 (single fixed channel, value is not otherwise meaningful)"
+    prompt: "Enable as cron home channel? (quote0 or empty)"
+    password: false
