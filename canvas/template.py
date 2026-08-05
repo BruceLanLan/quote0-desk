@@ -11,5 +11,5 @@
 from __future__ import annotations
 
 
-def simple_data(*, badge: str = "", title: str = "", message: str = "", footer: str = "") -> dict:
-    return {"badge": badge, "title": title, "message": message, "footer": footer}
+def simple_data(*, title: str = "", message: str = "", footer: str = "") -> dict:
+    return {"title": title, "message": message, "footer": footer}
