@@ -14,7 +14,7 @@
 
 - **NFC 真闭环**：贴一下手机，服务器执行动作，新内容立刻推回屏幕——不是"扫码看详情"，是屏幕本身会变。
 - **网页控制台**：不用背命令行，打开 `http://localhost:5252` 就能看设备状态、预览/推送每张卡、开关自动轮换。
-- **内容卡开箱即用**：屏上宠物、六爻摇卦、奇门遁甲、签筒、日课、桌面箴言机、今日打卡、时间胶囊、实盘信标、Hermes 任务台、Claude Code 用量状态灯。
+- **内容卡开箱即用**：屏上宠物、六爻摇卦、奇门遁甲、签筒、日课、桌面箴言机、今日打卡、时间胶囊、实盘信标、Hermes 任务台、Hermes 消息、Claude Code 用量状态灯。
 - **宠物状态对齐官方语义**：ASCII 造型和状态机移植自 Anthropic 官方 [claude-desktop-buddy](https://github.com/anthropics/claude-desktop-buddy)，接入 [buddy-bridge](#可选集成buddy-bridge) 后用真实的 Claude Code 会话信号驱动，不是瞎写的心情值。
 - **开机自动拉起，隧道自愈**：`server.py` 和 NFC 公网隧道注册成 macOS 后台服务，进程死了自动重启，隧道地址变了自动回写配置，不用守着终端。
 - **MCP 工具**：`draw_hexagram()`、`pat_pet()`、`set_today_task(...)` 这类具体卡片工具，不是通用文本/图片透传，Claude 能直接操作 Quote/0。
