@@ -61,6 +61,7 @@ CARDS = {
     "hermes": "Hermes 任务台",
     "hermes_inbox": "Hermes 消息",
     "pomodoro": "番茄钟",
+    "agent_board": "状态板",
 }
 
 
