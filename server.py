@@ -345,6 +345,32 @@ def t_ping():
     return jsonify({"ok": True, "message": "NFC/浏览器成功打开了这个 URL"})
 
 
+@app.route("/t/probe_form", methods=["GET", "POST"])
+def t_probe_form():
+    """一次性探针：NFC 目前六个 /t/* 路由全是零参数的（贴一下=执行一个固定
+    动作），从没验证过"贴一下能不能打开一个可输入的网页并成功提交"。这条
+    结论决定后续"带问题的卦""NFC 改宠物名"这类功能能不能做，所以先用一个
+    极简表单探一次——纯 HTML，无 JS、无外部资源，尽量兼容 Dot App 内置浏览器
+    这种可能功能残缺的 WebView。
+
+    验证完这条如果证实可行，`docs/DEVICE-FACTS.md` 记一笔就行，这个路由
+    本身是一次性的，不需要长期保留成正式功能。
+    """
+    if request.method == "GET":
+        html = """<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="font-family:sans-serif;padding:24px;font-size:18px">
+<form method="POST">
+<label>随便写点什么：</label><br>
+<input type="text" name="value" style="font-size:18px;padding:8px;width:80%"><br><br>
+<button type="submit" style="font-size:18px;padding:10px 24px">提交</button>
+</form></body></html>"""
+        return html
+    value = request.form.get("value", "")
+    log.info("probe_form POST value=%r", value)
+    return f"收到：{value}"
+
+
 if __name__ == "__main__":
     scheduler.start()
     app.run(host="0.0.0.0", port=5252, debug=False)
