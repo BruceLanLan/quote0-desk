@@ -143,6 +143,35 @@ def board_note(label: str, value: str) -> str:
 
 
 @mcp.tool()
+def cast_with_question(question: str) -> str:
+    """带着一个具体问题起一卦，立刻推到屏幕，7 天后 Quote/0 会自动提醒
+    回看"应了吗"（不需要开自动轮换，到点会自己插队推送）。question 应该
+    是用户实际问的那句话（比如"这周的面试能不能过"），不要替用户编问题、
+    也不要在没有明确问题时替用户假设一个。"""
+    r = _post("/api/oracle/cast", body={"question": question})
+    if not r.get("ok"):
+        return f"起卦失败：{r.get('hint', '未知错误')}"
+    entry = r["entry"]
+    hexagram = entry["hexagram"]
+    if entry.get("changed_hexagram"):
+        hexagram = f"{hexagram}→{entry['changed_hexagram']}"
+    return f"问「{question}」得卦：{hexagram}，已推到屏幕，7 天后会提醒你回看"
+
+
+@mcp.tool()
+def oracle_verdict(answer: str) -> str:
+    """回答最近一次到期的应期复盘"应了吗"。answer 只能是 "yes" 或 "no"，
+    根据用户实际说的话判断——不要在用户没明确表态时替他猜。"""
+    answer = answer.strip().lower()
+    if answer not in ("yes", "no"):
+        return "answer 必须是 yes 或 no"
+    r = _post("/api/oracle/verdict", body={"answer": answer})
+    if not r.get("ok"):
+        return f"记录失败：{r.get('hint', '未知错误')}"
+    return f"已记下「{'应验了' if answer == 'yes' else '没应验'}」，屏幕已更新"
+
+
+@mcp.tool()
 def push_hermes() -> str:
     """把 Hermes 任务台卡推到 Quote/0：本机 hermes-agent gateway 的定时任务
     概览（名字+schedule）。gateway 没在跑或没配 HERMES_API_KEY 时，卡片会

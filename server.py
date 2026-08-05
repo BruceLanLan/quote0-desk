@@ -23,10 +23,12 @@ from flask import Flask, jsonify, render_template, request
 import config
 import dot
 import scheduler
-from providers import agent_board, hermes_inbox, pomodoro
+from providers import agent_board, hermes_inbox, oracle, pomodoro
 from providers.todo import set_task, toggle_done
 from push import push_card, render_card
 from render import pet_sprites
+from render.base import to_data_url
+from render.divination import render as divination_render
 
 # 显式指到 stdout——launchd 把 stdout/stderr 分别定向到 out.log/err.log
 # （见 scripts/launchd/template.plist），logging.basicConfig 不传 stream
@@ -62,6 +64,7 @@ CARDS = {
     "hermes_inbox": "Hermes 消息",
     "pomodoro": "番茄钟",
     "agent_board": "状态板",
+    "oracle_review": "应期复盘",
 }
 
 
@@ -235,6 +238,49 @@ def api_board_clear():
     return jsonify({"ok": True, "push": result})
 
 
+@app.route("/api/oracle/cast", methods=["POST"])
+def api_oracle_cast():
+    """应期复盘的起卦入口（MCP `cast_with_question` 的落点）：记下问题、
+    起一卦、把**这一次**摇到的卦象（不是重新摇一次）立刻推到屏幕。D7
+    同一个信任模型：不接受 link 字段，本机/局域网可达即可，不额外加鉴权。
+
+    不走 `push_card("liuyao")`——那张卡的 `build()` 语义是"现摇一卦"，
+    会重新调一次 `cast_hexagram()`，随机结果就跟 `oracle.cast()` 已经
+    记进日志的卦象对不上了。这里直接调渲染 + 推送，跟 `_push_counter()`
+    一样是绕开 `cards/` 抽象层的特例，因为需要渲染和存储共用同一份
+    随机结果。
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    question = str(body.get("question") or "").strip()
+    entry, full_cast = oracle.cast(question)
+    try:
+        img = divination_render(full_cast)
+        d = dot.resolve_device_id()
+        result = dot.push_image(d, image=to_data_url(img), link="", refresh_now=True,
+                                 task_alias="带问题的卦")
+    except Exception as e:
+        log.warning("oracle_cast 推送失败: %s", e)
+        result = {"ok": False, "hint": str(e)}
+    log.info("oracle_cast question=%s hexagram=%s push=%s", question, entry["hexagram"], result)
+    return jsonify({"ok": True, "entry": entry, "push": result})
+
+
+@app.route("/api/oracle/verdict", methods=["POST"])
+def api_oracle_verdict():
+    """回答"应了吗"（MCP `oracle_verdict` 的落点），立刻推一次应期复盘卡
+    反映最新的命中率。"""
+    body = request.get_json(force=True, silent=True) or {}
+    answer = str(body.get("answer") or "").strip().lower()
+    if answer not in ("yes", "no"):
+        return jsonify({"ok": False, "hint": "answer 必须是 yes 或 no"}), 400
+    entry = oracle.verdict(answer)
+    if entry is None:
+        return jsonify({"ok": False, "hint": "目前没有待回答的应期记录"}), 400
+    result = _safe(push_card, "oracle_review")
+    log.info("oracle_verdict answer=%s push=%s", answer, result)
+    return jsonify({"ok": True, "entry": entry, "push": result})
+
+
 @app.route("/api/scheduler_status")
 def api_scheduler_status():
     return jsonify(scheduler.get_state())
@@ -261,6 +307,7 @@ _EXPOSED_KEYS = [
     "capsule_repos",
     "beacon_lighter_dir", "beacon_stock_radar_dir",
     "pomodoro_minutes",
+    "oracle_review_days",
 ]
 
 
@@ -326,6 +373,12 @@ def api_config():
         except (TypeError, ValueError):
             return jsonify({"ok": False, "hint": "pomodoro_minutes 必须是数字"}), 400
         updates["pomodoro_minutes"] = max(1, minutes)
+    if "oracle_review_days" in body:
+        try:
+            days = int(body["oracle_review_days"])
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "hint": "oracle_review_days 必须是数字"}), 400
+        updates["oracle_review_days"] = max(1, days)
     cfg = config.update(**updates)
     return jsonify({"ok": True, "config": cfg})
 
@@ -386,6 +439,19 @@ def t_pomodoro():
     result = _safe(push_card, "pomodoro")
     log.info("pomodoro -> %s push=%s", state, result)
     return jsonify({"state": state, "push": result})
+
+
+@app.route("/t/oracle_verdict", methods=["GET", "POST"])
+def t_oracle_verdict():
+    """应期复盘：贴一下记为"应验了"。Quote/0 一张卡只有一个 link，没法
+    像手机 App 那样弹"是/否"两个按钮，所以贴一下固定对应更有仪式感的
+    "应验了"（yes）——"没应验"这个结果预期主要靠对话跟 Claude 说
+    （MCP 的 oracle_verdict("no")），这是简化，如实记在这里。
+    """
+    entry = oracle.verdict("yes")
+    result = _safe(push_card, "oracle_review")
+    log.info("oracle_verdict(yes) -> %s push=%s", entry, result)
+    return jsonify({"entry": entry, "push": result})
 
 
 @app.route("/t/ping")

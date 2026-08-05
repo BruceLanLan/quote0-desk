@@ -88,6 +88,17 @@ textarea{width:100%;box-sizing:border-box;border:1px solid #e3ded5;border-radius
 </div>
 
 <div class="card">
+  <h1 style="font-size:17px;margin-top:0">应期复盘</h1>
+  <div class="field">
+    <label>起卦后多少天自动提醒回看（天）</label>
+    <input type="number" id="oracle_review_days" min="1">
+    <div class="hint">跟 Claude 说一个问题起一卦（"帮我起一卦，问这周的面试能不能过"），到这里设的天数会自动提醒你回看"应了吗"，不需要开启自动轮换。</div>
+  </div>
+  <button class="btn" onclick="saveConfig()">保存</button>
+  <div id="msg6"></div>
+</div>
+
+<div class="card">
   <h1 style="font-size:17px;margin-top:0">路径配置</h1>
   <div class="hint" style="margin-bottom:8px">这几张卡要读本机其他项目的目录。默认值是作者本机的位置，在你的机器上多半不存在——读不到只会显示「暂无数据」，不会报错。填绝对路径或 <code>~/</code> 开头都行。</div>
   <div class="field">
@@ -147,6 +158,7 @@ async function loadConfig(){
   document.getElementById('auto_push_interval_minutes').value = cfg.auto_push_interval_minutes || 10;
   document.getElementById('pet_species').value = cfg.pet_species || 'duck';
   document.getElementById('pomodoro_minutes').value = cfg.pomodoro_minutes || 25;
+  document.getElementById('oracle_review_days').value = cfg.oracle_review_days || 7;
   document.getElementById('beacon_lighter_dir').value = cfg.beacon_lighter_dir || '';
   document.getElementById('beacon_stock_radar_dir').value = cfg.beacon_stock_radar_dir || '';
   document.getElementById('capsule_repos').value = (cfg.capsule_repos || []).join('\n');
@@ -157,7 +169,7 @@ async function loadConfig(){
 
 // 每张卡片各有一个「保存」按钮，但都提交整份表单——分开提交容易出现
 // 「改了 A 卡片、B 卡片的输入框内容被服务端的旧值覆盖回去」这种别扭情况。
-const MSG_SLOTS = ['msg', 'msg2', 'msg3', 'msg4', 'msg5'];
+const MSG_SLOTS = ['msg', 'msg2', 'msg3', 'msg4', 'msg5', 'msg6'];
 
 function showMsg(html){
   MSG_SLOTS.forEach(id => { document.getElementById(id).innerHTML = html; });
@@ -172,6 +184,7 @@ async function saveConfig(){
     auto_push_cards: cards,
     pet_species: val('pet_species'),
     pomodoro_minutes: Math.max(1, parseInt(val('pomodoro_minutes')) || 25),
+    oracle_review_days: Math.max(1, parseInt(val('oracle_review_days')) || 7),
     beacon_lighter_dir: val('beacon_lighter_dir').trim(),
     beacon_stock_radar_dir: val('beacon_stock_radar_dir').trim(),
     capsule_repos: lines('capsule_repos'),

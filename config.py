@@ -33,6 +33,7 @@ DEFAULTS = {
     "beacon_lighter_dir": "~/lighter-scalper",
     "beacon_stock_radar_dir": "~/dev/stock-radar",
     "pomodoro_minutes": 25,  # 番茄钟一个专注块的时长
+    "oracle_review_days": 7,  # 应期复盘：起卦后多少天自动提醒回看
 }
 
 

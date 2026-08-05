@@ -14,7 +14,7 @@
 
 - **NFC 真闭环**：贴一下手机，服务器执行动作，新内容立刻推回屏幕——不是"扫码看详情"，是屏幕本身会变。
 - **网页控制台**：不用背命令行，打开 `http://localhost:5252` 就能看设备状态、预览/推送每张卡、开关自动轮换。
-- **内容卡开箱即用**：屏上宠物、六爻摇卦、奇门遁甲、签筒、日课、桌面箴言机、今日打卡、番茄钟、状态板、时间胶囊、实盘信标、Hermes 任务台、Hermes 消息、Claude Code 用量状态灯。
+- **内容卡开箱即用**：屏上宠物、六爻摇卦、奇门遁甲、签筒、日课、桌面箴言机、今日打卡、番茄钟、状态板、应期复盘、时间胶囊、实盘信标、Hermes 任务台、Hermes 消息、Claude Code 用量状态灯。
 - **宠物状态对齐官方语义**：ASCII 造型和状态机移植自 Anthropic 官方 [claude-desktop-buddy](https://github.com/anthropics/claude-desktop-buddy)，接入 [buddy-bridge](#可选集成buddy-bridge) 后用真实的 Claude Code 会话信号驱动，不是瞎写的心情值。
 - **开机自动拉起，隧道自愈**：`server.py` 和 NFC 公网隧道注册成 macOS 后台服务，进程死了自动重启，隧道地址变了自动回写配置，不用守着终端。
 - **MCP 工具**：`draw_hexagram()`、`pat_pet()`、`set_today_task(...)` 这类具体卡片工具，不是通用文本/图片透传，Claude 能直接操作 Quote/0。
@@ -125,6 +125,7 @@ bash scripts/uninstall_launchd.sh
 | `/t/qiantong` | 签筒抽一签（摇卦或奇门二选一，真随机） |
 | `/t/pet_pat` | 摸摸屏上宠物，触发一次性"精神"反应 |
 | `/t/pomodoro` | 番茄钟：空闲时开始一个专注块，进行中时提前结束 |
+| `/t/oracle_verdict` | 应期复盘：贴一下记为"应验了" |
 | `/t/ping` | 探测用，只记日志不推送 |
 
 ### 排障：贴了没反应
@@ -150,6 +151,7 @@ bash scripts/uninstall_launchd.sh
 | 今日一件事 | `push todo` / `set-todo "..."` | 单条每日承诺，NFC 打卡 |
 | 番茄钟 | `push pomodoro` | 贴一下开始一个专注块（屏幕显示起止时刻，不走秒），进行中不会被自动轮换覆盖，到点自动推送通知——不依赖开没开自动轮换 |
 | 状态板 | `push agent_board` | 跟 Claude 说一句话（"帮我记一下，答应老王周五给方案"），屏幕上多一行带时间戳的记录，最多同时显示 5 行；只能靠对话写入，不会自己去抓任何数据 |
+| 应期复盘 | `push oracle_review` | 跟 Claude 说一个问题起一卦（"帮我起一卦，问这周的面试能不能过"），7 天后自动提醒回看"应了吗"，不需要开自动轮换；带历史命中率 |
 | 时间胶囊 | `push capsule` | 本机 git 仓库历史里"一年前/一个月前/一周前的今天"提交 |
 | 实盘信标 | `push beacon` | 只读展示交易策略持仓 + 选股信号，不导入对应项目的代码/密钥 |
 | Hermes 任务台 | `push hermes` | 只读展示本机 [hermes-agent](https://github.com/NousResearch/hermes-agent) gateway 的定时任务列表；可选集成，没装 Hermes 或 gateway 没起时显示"未接入" |
@@ -209,7 +211,7 @@ python3 server.py             # 常驻运行，调度线程随 Flask 一起启�
 
 `mcp_server/` 是一个独立的 MCP server，把具体卡片暴露成工具（`draw_hexagram()`、`pat_pet()`、`set_today_task(...)` 这类），不是通用的文本/图片透传——那个方向 MindReset 生态里已经有好几个实现了。用法见 [`mcp_server/README.md`](mcp_server/README.md)；它需要 Python 3.10+（跟主项目的 3.9 环境分开跑），只是主项目 `/api/*` 接口的一个 HTTP 客户端，不侵入主项目本身。
 
-其中 `board_note(label, value)` 值得单独一提：这是目前唯一一个"内容由你现在说的话决定"的工具，其余工具要么是算出来的（日课/奇门）、要么是抓来的（状态灯/信标）、要么是随机的（箴言/签筒）。工具参数是必填的，信息不全时 Claude 会自己开口问，不需要额外写"追问"的代码。
+其中 `board_note(label, value)` 值得单独一提：这是目前唯一一个"内容由你现在说的话决定"的工具，其余工具要么是算出来的（日课/奇门）、要么是抓来的（状态灯/信标）、要么是随机的（箴言/签筒）。工具参数是必填的，信息不全时 Claude 会自己开口问，不需要额外写"追问"的代码。`cast_with_question(question)` 是同一条思路在玄学方向的延伸：跟 Claude 说一个具体问题起一卦，7 天后 Quote/0 会自己提醒你回来看"应了吗"——手机上问 AI 也能起一卦，但"过些天再回来问当初问的事应验了没有"这种跨越时间的追问，只有一块常驻的屏幕才做得到。
 
 ## Hermes Agent 集成
 

@@ -15,4 +15,5 @@ data/pet_state.json
 data/hermes_inbox_state.json
 data/pomodoro_state.json
 data/agent_board.json
+data/oracle_log.json
 mcp_server/.venv/
