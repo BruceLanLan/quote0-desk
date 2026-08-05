@@ -22,6 +22,7 @@ from flask import Flask, jsonify, render_template, request
 import config
 import dot
 import scheduler
+from providers import hermes_inbox
 from providers.todo import set_task, toggle_done
 from push import push_card, render_card
 from render import pet_sprites
@@ -49,6 +50,7 @@ CARDS = {
     "capsule": "时间胶囊",
     "beacon": "实盘信标",
     "hermes": "Hermes 任务台",
+    "hermes_inbox": "Hermes 消息",
 }
 
 
@@ -149,6 +151,28 @@ def api_todo():
         return jsonify({"ok": False, "hint": "任务不能为空"}), 400
     set_task(task)
     result = push_card("todo")
+    return jsonify({"ok": True, "push": result})
+
+
+@app.route("/api/hermes_inbox", methods=["POST"])
+def api_hermes_inbox():
+    """hermes-quote0 插件（独立仓库，见私有整合计划）的 send() 落点——Hermes
+    agent 主动推一条消息过来，存下并立刻推到屏幕。跟其它 /api/* 端点同一个
+    信任模型：只在本机/局域网内可达，不额外加鉴权（这个项目从第一天起就没有
+    对公网暴露的设计，见 README「排障」一节）。
+
+    D1 安全设计决策：不接受任何 link 字段——屏幕上这张卡的 link 由
+    cards/hermes_inbox.py 固定生成（本轮固定为空），body 里传了也会被忽略，
+    这是硬约束，不是文档提醒：agent 会被 prompt injection，不能让它有机会
+    通过"自己写一个 link"把物理贴一下变成钓鱼入口。
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    message = str(body.get("message") or "").strip()
+    if not message:
+        return jsonify({"ok": False, "hint": "message 不能为空"}), 400
+    hermes_inbox.receive(message)
+    result = push_card("hermes_inbox")
+    log.info("hermes_inbox 收到消息并推送: %s", result)
     return jsonify({"ok": True, "push": result})
 
 
