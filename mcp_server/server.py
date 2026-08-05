@@ -128,6 +128,21 @@ def toggle_today_task() -> str:
 
 
 @mcp.tool()
+def board_note(label: str, value: str) -> str:
+    """在 Quote/0 的状态板上记一行，立刻推到屏幕。label 是这件事的名字
+    （不超过 6 个字，同名会覆盖上一次的记录而不是新增一行——比如再记一次
+    「读书」会更新原来那行，不是长出第二行），value 是这次的具体内容
+    （不超过 20 个字）。板子最多同时显示 5 行，写第 6 件事时最早的一行
+    会被自动挤掉。这张卡只反映"你刚才告诉我的事"，不会自己去抓任何数据——
+    如果信息不全（比如只说"记一下喝奶"没说多少毫升），应该先问清楚再调用
+    这个工具，不要自己编一个数字。"""
+    r = _post("/api/board/row", body={"label": label, "value": value})
+    if not r.get("ok"):
+        return f"记录失败：{r.get('hint', '未知错误')}"
+    return f"已记下「{label}：{value}」并推送到屏幕"
+
+
+@mcp.tool()
 def push_hermes() -> str:
     """把 Hermes 任务台卡推到 Quote/0：本机 hermes-agent gateway 的定时任务
     概览（名字+schedule）。gateway 没在跑或没配 HERMES_API_KEY 时，卡片会

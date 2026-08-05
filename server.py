@@ -23,7 +23,7 @@ from flask import Flask, jsonify, render_template, request
 import config
 import dot
 import scheduler
-from providers import hermes_inbox, pomodoro
+from providers import agent_board, hermes_inbox, pomodoro
 from providers.todo import set_task, toggle_done
 from push import push_card, render_card
 from render import pet_sprites
@@ -199,6 +199,39 @@ def api_hermes_inbox():
     hermes_inbox.receive(message)
     result = _safe(push_card, "hermes_inbox")
     log.info("hermes_inbox 收到消息并推送: %s", result)
+    return jsonify({"ok": True, "push": result})
+
+
+@app.route("/api/board", methods=["GET"])
+def api_board_get():
+    """只读查看状态板当前内容——不推送，控制台/调试用。"""
+    return jsonify(agent_board.board() or {"rows": []})
+
+
+@app.route("/api/board/row", methods=["POST"])
+def api_board_row():
+    """状态板写一行（对话式记录的落点，见 mcp_server 的 board_note 工具）。
+    D7 安全设计决策：跟 /api/hermes_inbox 同一个信任模型——只在本机/局域网
+    可达、不额外加鉴权；**不接受任何 link 字段**（D1 的延续，MCP 那头同样
+    可能被 prompt injection，不能让它有路径把物理贴一下变成钓鱼）。
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    label = str(body.get("label") or "").strip()
+    value = str(body.get("value") or "").strip()
+    if not label:
+        return jsonify({"ok": False, "hint": "label 不能为空"}), 400
+    agent_board.set_row(label, value)
+    result = _safe(push_card, "agent_board")
+    log.info("board_row %s=%s push=%s", label, value, result)
+    return jsonify({"ok": True, "push": result})
+
+
+@app.route("/api/board/clear", methods=["POST"])
+def api_board_clear():
+    """状态板清空 + 立刻推屏，反映"现在没有任何记录"这个状态。"""
+    agent_board.clear()
+    result = _safe(push_card, "agent_board")
+    log.info("board_clear push=%s", result)
     return jsonify({"ok": True, "push": result})
 
 
