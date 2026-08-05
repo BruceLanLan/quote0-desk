@@ -47,7 +47,12 @@ def render(state: dict):
 
     footer_y = y0 + len(lines) * ART_LINE_HEIGHT + 4
     hline(draw, footer_y)
-    footer = f"上次活跃 {state['last_active_label']}"
+    # "陪你 N 天"放前面：画布已经贴着 152px 高度上限，加不出一整行新的了，
+    # 只能并进这一行，宽度不够时优先保住这条新信息，宁可截掉后面的
+    # "上次活跃"（那条信息在 header 的状态标签里已经能间接看出个大概）。
+    days = state.get("days_together")
+    footer = f"陪你 {days} 天 · 上次活跃 {state['last_active_label']}" if days else f"上次活跃 {state['last_active_label']}"
+    footer = truncate_to_width(draw, footer, font(12), WIDTH - 12)
     draw.text((6, footer_y + 4), footer, font=font(12), fill=gray(DARK_GRAY))
 
     return img
