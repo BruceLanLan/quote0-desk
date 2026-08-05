@@ -37,6 +37,12 @@ Quote/0 没有加速度计，没有对应的物理动作可以触发）。
 `config.json` 的 `pet_species` 决定（控制台设置页有下拉框），默认鸭子。
 判定「活跃 / 在跑 / 等审批」的那一段逻辑跟状态灯卡共用
 `providers/buddy.py` 的 `base_state()`，两张卡不会各自漂移。
+
+**陪伴天数 / 摸摸次数**：`first_seen_ts` 记第一次 `scan()` 的时间，
+`days_together` 就是自然日跨度（不做"连续打卡"式的 streak——某天没检测
+到活动信号就打回重来这种设计对"让人愿意多贴一下"这个目标是负面的，跟
+`providers/todo.py` 明确不做历史打卡是同一个判断，只是这里换了个更宽容
+的计数方式）。`pat_count` 每次 NFC 摸摸 +1，累计不清零。
 """
 from __future__ import annotations
 
@@ -116,6 +122,8 @@ def scan(repos: list[str] = None) -> dict:
     last_celebrated_milestone = raw.get("last_celebrated_milestone", 0)
     celebrate_started_ts = raw.get("celebrate_started_ts", 0)
     waiting_since_ts = raw.get("waiting_since_ts", 0)
+    first_seen_ts = raw.get("first_seen_ts") or now
+    pat_count = raw.get("pat_count", 0)
 
     buddy = buddy_provider.fetch()
     # 判定逻辑跟状态灯卡共用 providers/buddy.py 的这一份，两边不各写一遍。
@@ -169,7 +177,11 @@ def scan(repos: list[str] = None) -> dict:
         "last_celebrated_milestone": last_celebrated_milestone,
         "celebrate_started_ts": celebrate_started_ts,
         "waiting_since_ts": waiting_since_ts,
+        "first_seen_ts": first_seen_ts,
+        "pat_count": pat_count,
     })
+
+    days_together = int((now - first_seen_ts) / 86400) + 1  # 第一天就叫"陪你 1 天"，不从 0 数起
 
     return {
         "species": species,
@@ -179,12 +191,15 @@ def scan(repos: list[str] = None) -> dict:
         "waiting_alert": waiting_alert,
         "waiting_minutes": waiting_minutes,
         "waiting_tool": buddy.get("msg", "") if waiting_alert else "",
+        "days_together": days_together,
+        "pat_count": pat_count,
     }
 
 
 def pat() -> dict:
-    """NFC 贴一下：摸摸它，触发 heart 状态一段时间。"""
+    """NFC 贴一下：摸摸它，触发 heart 状态一段时间，累计摸摸次数 +1。"""
     raw = _load()
     raw["last_pat_ts"] = time.time()
+    raw["pat_count"] = raw.get("pat_count", 0) + 1
     _save(raw)
     return scan()
