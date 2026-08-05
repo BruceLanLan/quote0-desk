@@ -13,4 +13,6 @@ data/proverb_state.json
 data/capsule_cache.json
 data/pet_state.json
 data/hermes_inbox_state.json
+data/pomodoro_state.json
+data/agent_board.json
 mcp_server/.venv/
