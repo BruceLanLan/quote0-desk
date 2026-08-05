@@ -50,6 +50,7 @@ python3 server.py   # 或者已经按 README 装了 launchd 常驻服务
 | `push_daily()` | 推日课卡（当前四柱干支） |
 | `push_proverb()` | 推桌面箴言机卡 |
 | `push_status()` | 推 Claude Code 状态灯卡 |
+| `push_hermes()` | 推 Hermes 任务台卡（本机 hermes-agent 的定时任务概览，可选集成） |
 | `set_today_task(task)` | 设置今日一件事并推送 |
 | `toggle_today_task()` | 切换今日任务完成状态 |
 | `get_device_status()` | 只读查看设备在线状态 |
