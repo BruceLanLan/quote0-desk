@@ -16,6 +16,7 @@ M2 最小可用：`/t/<action>` 路由，贴一下手机 → 打这个 URL → �
 外部调用方在依赖旧路径，直接改比留兼容层干净。
 """
 import logging
+import sys
 
 from flask import Flask, jsonify, render_template, request
 
@@ -27,7 +28,15 @@ from providers.todo import set_task, toggle_done
 from push import push_card, render_card
 from render import pet_sprites
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+# 显式指到 stdout——launchd 把 stdout/stderr 分别定向到 out.log/err.log
+# （见 scripts/launchd/template.plist），logging.basicConfig 不传 stream
+# 时默认走 stderr，导致每 5/15 秒一次的 /api/status、/api/scheduler_status
+# 轮询记录也全塞进了 err.log，"err.log" 名不副实——真正的报错反而被淹没
+# 在海量正常访问记录里，排障时不好找。改到 stdout 之后，err.log 里就只剩
+# Python 未捕获异常自己的 traceback（Flask/Werkzeug 直接写 stderr，不受
+# 这里的配置影响），符合这个文件名字面的意思。
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
+                     stream=sys.stdout)
 log = logging.getLogger("quote0-desk")
 
 app = Flask(__name__)
@@ -245,7 +254,10 @@ def api_config():
             return jsonify({"ok": False, "hint": "auto_push_interval_minutes 必须是数字"}), 400
         updates["auto_push_interval_minutes"] = max(scheduler.MIN_INTERVAL_MINUTES, interval)
     if "auto_push_cards" in body:
-        updates["auto_push_cards"] = [c for c in body["auto_push_cards"] if c in CARDS]
+        raw_cards = body["auto_push_cards"]
+        if not isinstance(raw_cards, list):
+            return jsonify({"ok": False, "hint": "auto_push_cards 必须是数组"}), 400
+        updates["auto_push_cards"] = [c for c in raw_cards if c in CARDS]
     if "nfc_base_url" in body:
         updates["nfc_base_url"] = str(body["nfc_base_url"]).strip()
     if "pet_species" in body:
@@ -260,7 +272,15 @@ def api_config():
         updates["pet_species"] = species
     for key in ("pet_repos", "capsule_repos"):
         if key in body:
-            updates[key] = _clean_path_list(body[key])
+            raw = body[key]
+            # _clean_path_list() 对不认识的类型故意"宽容"地退回空列表——那个
+            # 宽容是为了不让奇怪输入崩掉，但在这里（设置页保存）会变成静默
+            # 清空用户配置：传个数字/对象进来，返回 200，pet_repos 却被清空
+            # 了，用户毫无察觉。类型检查提前到这里做，非法类型直接拒绝，
+            # 空字符串/空数组这两种"合法的清空信号"仍然放行。
+            if not isinstance(raw, (str, list)):
+                return jsonify({"ok": False, "hint": f"{key} 必须是数组或字符串"}), 400
+            updates[key] = _clean_path_list(raw)
     for key in ("beacon_lighter_dir", "beacon_stock_radar_dir"):
         if key in body:
             updates[key] = str(body[key]).strip()

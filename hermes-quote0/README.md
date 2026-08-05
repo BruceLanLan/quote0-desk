@@ -1,6 +1,6 @@
 # hermes-quote0
 
-[Hermes Agent](https://github.com/NousResearch/hermes-agent) 的平台插件，把 agent 消息 / cron job 结果送到这个仓库管理的 Quote/0 墨水屏上——插件本身不直接持有 Dot 云端 API 凭据，实际推送经由主项目已经在跑的 `server.py`（见 [`../providers/hermes_inbox.py`](../providers/hermes_inbox.py) + [`../cards/hermes_inbox.py`](../cards/hermes_inbox.py)）。
+[Hermes Agent](https://github.com/NousResearch/hermes-agent) 的平台插件，把 agent 消息 / cron job 结果送到这个仓库管理的 Quote/0 墨水屏上——插件本身不直接持有 Dot 云端 API 凭据，实际推送经由主项目已经在跑的 `server.py`（见 [`providers/hermes_inbox.py`](https://github.com/BruceLanLan/quote0-desk/blob/main/providers/hermes_inbox.py) + [`cards/hermes_inbox.py`](https://github.com/BruceLanLan/quote0-desk/blob/main/cards/hermes_inbox.py)）。这个 README 会被原样安装到 `~/.hermes/plugins/hermes-quote0/`，用绝对 GitHub 链接而不是相对路径，装到别处之后链接也不会失效。
 
 outbound-only：Quote/0 没有聊天界面，这个适配器不接收 inbound 消息，也不维护长连接。所有内容都会在屏幕上带 `Hermes Agent` 签名，且这个适配器永远不会自己指定 NFC 回调链接——链接由 quote0-desk 的卡片层固定生成或留空，不给 prompt injection 留任何把物理贴一下变成钓鱼入口的机会。
 
@@ -47,6 +47,6 @@ hermes cron create "0 9 * * *" --deliver quote0 --no-agent --script my_report.sh
 
 ## 验证过什么
 
-`send()` 路径（含 cron 投递用的 `standalone_sender_fn`）已经在真实运行的 hermes-agent gateway 上验证：插件正确注册为 `quote0` platform，`GET /health/detailed` 显示 `connected`；一个真实的 `deliver=quote0` cron job 端到端把结果送上了墨水屏，屏幕内容带固定的 `Hermes Agent` 签名、NFC 链接固定为空。
+`send()` 路径（含 cron 投递用的 `standalone_sender_fn`）已经在真实运行的 hermes-agent gateway 上验证：插件正确注册为 `quote0` platform，`GET /health/detailed` 显示 `connected`；一个真实的 `deliver=quote0` cron job 端到端把结果送上了墨水屏，屏幕内容带固定的 `Hermes Agent` 签名、NFC 链接固定为空。「安装」一节写的 `cp -r` 方式也单独真机验证过（本机开发时实际用的是软链接，`cp -r` 是之后补测的，两种方式加载结果一致）。
 
 目前是 quote0-desk 项目里一个可用但独立的组件，没有主动往 [Hermes Studio](https://github.com/JPeetz/Hermes-Studio) 提过整合。注意这里的安装方式是手动复制这个子目录，不是 `hermes plugins install <owner>/<repo>` 那种一键装——那条命令期望插件在仓库根目录，没有验证过它对"插件是仓库里某个子目录"这种情况的支持。
