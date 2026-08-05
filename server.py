@@ -63,6 +63,21 @@ def _push_counter():
                           link=link, refresh_now=True, task_alias="NFC 计数器")
 
 
+def _safe(fn, *args, **kwargs) -> dict:
+    """/t/* 路由统一用这个包一层可能抛异常的推送调用——网络抖动/Dot API 报错
+    时返回 {"ok": False, "hint": ...}，路由层直接 jsonify，不会让 NFC 贴一下
+    在手机上看到裸的 Flask 500 错误页。这条容错纪律 /api/push、/api/preview
+    从一开始就有，/t/* 这批路由是更早的 M2 阶段加的，一直没有补齐——直到一次
+    真实的网络代理抖动把 pet_pat 打出 500 才发现覆盖面有多大（真机测试的
+    发现，不是凭空推测的场景）。
+    """
+    try:
+        return fn(*args, **kwargs)
+    except Exception as e:
+        log.warning("NFC 触发的推送失败: %s", e)
+        return {"ok": False, "hint": str(e)}
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -150,13 +165,13 @@ def api_todo():
     if not task:
         return jsonify({"ok": False, "hint": "任务不能为空"}), 400
     set_task(task)
-    result = push_card("todo")
+    result = _safe(push_card, "todo")
     return jsonify({"ok": True, "push": result})
 
 
 @app.route("/api/hermes_inbox", methods=["POST"])
 def api_hermes_inbox():
-    """hermes-quote0 插件（独立仓库，见私有整合计划）的 send() 落点——Hermes
+    """hermes-quote0 插件（`hermes-quote0/` 子目录）的 send() 落点——Hermes
     agent 主动推一条消息过来，存下并立刻推到屏幕。跟其它 /api/* 端点同一个
     信任模型：只在本机/局域网内可达，不额外加鉴权（这个项目从第一天起就没有
     对公网暴露的设计，见 README「排障」一节）。
@@ -171,7 +186,7 @@ def api_hermes_inbox():
     if not message:
         return jsonify({"ok": False, "hint": "message 不能为空"}), 400
     hermes_inbox.receive(message)
-    result = push_card("hermes_inbox")
+    result = _safe(push_card, "hermes_inbox")
     log.info("hermes_inbox 收到消息并推送: %s", result)
     return jsonify({"ok": True, "push": result})
 
@@ -254,7 +269,7 @@ def api_config():
 def t_counter_tap():
     """M2 最小验证：贴一下数字 +1，立刻推回屏幕。"""
     _counter_state["n"] += 1
-    result = _push_counter()
+    result = _safe(_push_counter)
     log.info("counter_tap -> n=%s push=%s", _counter_state["n"], result)
     return jsonify({"n": _counter_state["n"], "push": result})
 
@@ -263,7 +278,7 @@ def t_counter_tap():
 def t_todo_toggle():
     """今日一件事打卡：贴一下切换完成状态，立刻推回屏幕。"""
     state = toggle_done()
-    result = push_card("todo")
+    result = _safe(push_card, "todo")
     log.info("todo_toggle -> %s push=%s", state, result)
     return jsonify({"state": state, "push": result})
 
@@ -273,7 +288,7 @@ def t_proverb_next():
     """箴言机换一句：贴一下翻到下一条种子缓存，立刻推回屏幕。"""
     from providers.proverb import advance
     advance()
-    result = push_card("proverb")
+    result = _safe(push_card, "proverb")
     log.info("proverb_next push=%s", result)
     return jsonify({"push": result})
 
@@ -281,7 +296,7 @@ def t_proverb_next():
 @app.route("/t/qiantong", methods=["GET", "POST"])
 def t_qiantong():
     """签筒：贴一下真随机抽一签（摇卦或奇门二选一）。"""
-    result = push_card("qiantong")
+    result = _safe(push_card, "qiantong")
     log.info("qiantong push=%s", result)
     return jsonify({"push": result})
 
@@ -292,7 +307,7 @@ def t_pet_pat():
     反应），跟 busy/idle/sleep 的判定互不影响，见 providers/pet.py。"""
     from providers.pet import pat
     state = pat()
-    result = push_card("pet")
+    result = _safe(push_card, "pet")
     log.info("pet_pat -> state=%s push=%s", state["state"], result)
     return jsonify({"state": state, "push": result})
 
