@@ -128,6 +128,14 @@ def toggle_today_task() -> str:
 
 
 @mcp.tool()
+def push_hermes() -> str:
+    """把 Hermes 任务台卡推到 Quote/0：本机 hermes-agent gateway 的定时任务
+    概览（名字+schedule）。gateway 没在跑或没配 HERMES_API_KEY 时，卡片会
+    优雅显示"未接入"，这是可选集成，不是每个人都装了 hermes-agent。"""
+    return _push_summary("hermes", _post("/api/push", card="hermes"))
+
+
+@mcp.tool()
 def get_device_status() -> str:
     """只读查看 Quote/0 设备在线状态（电量/WiFi/当前屏幕渲染图 URL）。"""
     r = _get("/api/status")
