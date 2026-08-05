@@ -16,8 +16,16 @@ from providers.hermes import fetch as fetch_hermes
 
 
 def _job_line(job: dict) -> str:
+    """schedule 字段真机验证前假设是字符串，真实 gateway 返回的其实是
+    `{"kind": "cron", "expr": "...", "display": "..."}` 这样的字典——顶层
+    job 对象另有一份摊平好的 `schedule_display`，优先用这个；两者都没有
+    再退到 schedule 字典内部的 display 键，最后才原样兜底，不假设固定形状。
+    """
     name = job.get("name") or job.get("id", "未命名任务")
-    schedule = job.get("schedule") or job.get("cron")
+    schedule = job.get("schedule_display")
+    if not schedule:
+        raw = job.get("schedule")
+        schedule = raw.get("display") if isinstance(raw, dict) else raw
     return f"· {name}（{schedule}）" if schedule else f"· {name}"
 
 
