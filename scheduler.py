@@ -11,6 +11,7 @@
 """
 import logging
 import threading
+import time
 from datetime import datetime, timedelta
 
 import config
@@ -90,7 +91,21 @@ def _loop():
         _tick()
         with _state_lock:
             _state["next_push_at"] = (datetime.now() + timedelta(minutes=interval_min)).isoformat()
-        _stop_event.wait(interval_min * 60)
+        _sleep_until_next_tick(interval_min)
+
+
+def _sleep_until_next_tick(interval_min: int):
+    """按 interval_min 分钟睡，但每 DISARMED_POLL_SECONDS 秒醒一次检查布防开关有没有
+    被中途关掉——之前是一次性 sleep(interval_min*60)，用户在设置页关掉布防、看到
+    "已保存"之后，实际最长要等 interval_min（默认至少 5 分钟）才会真正停止推送，
+    这段时间仪表盘还在显示"已布防·下次约 HH:MM"，是个会误导人的假开关。"""
+    deadline = time.monotonic() + interval_min * 60
+    while time.monotonic() < deadline:
+        remaining = deadline - time.monotonic()
+        if _stop_event.wait(min(DISARMED_POLL_SECONDS, remaining)):
+            return  # 线程被要求整体停止
+        if not config.load().get("auto_push_enabled"):
+            return  # 布防被中途关掉，提前结束这次等待，让下一轮循环立刻反映新状态
 
 
 def start():
