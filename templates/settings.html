@@ -77,6 +77,17 @@ textarea{width:100%;box-sizing:border-box;border:1px solid #e3ded5;border-radius
 </div>
 
 <div class="card">
+  <h1 style="font-size:17px;margin-top:0">番茄钟</h1>
+  <div class="field">
+    <label>专注块时长（分钟）</label>
+    <input type="number" id="pomodoro_minutes" min="1">
+    <div class="hint">贴一下 NFC 开始一个专注块，进行中屏幕会一直显示起止时刻（不会被自动轮换覆盖），再贴一下＝提前结束。到点会自动推一张"这一轮结束了"，不需要开启自动轮换。</div>
+  </div>
+  <button class="btn" onclick="saveConfig()">保存</button>
+  <div id="msg5"></div>
+</div>
+
+<div class="card">
   <h1 style="font-size:17px;margin-top:0">路径配置</h1>
   <div class="hint" style="margin-bottom:8px">这几张卡要读本机其他项目的目录。默认值是作者本机的位置，在你的机器上多半不存在——读不到只会显示「暂无数据」，不会报错。填绝对路径或 <code>~/</code> 开头都行。</div>
   <div class="field">
@@ -135,6 +146,7 @@ async function loadConfig(){
   document.getElementById('auto_push_enabled').checked = !!cfg.auto_push_enabled;
   document.getElementById('auto_push_interval_minutes').value = cfg.auto_push_interval_minutes || 10;
   document.getElementById('pet_species').value = cfg.pet_species || 'duck';
+  document.getElementById('pomodoro_minutes').value = cfg.pomodoro_minutes || 25;
   document.getElementById('beacon_lighter_dir').value = cfg.beacon_lighter_dir || '';
   document.getElementById('beacon_stock_radar_dir').value = cfg.beacon_stock_radar_dir || '';
   document.getElementById('capsule_repos').value = (cfg.capsule_repos || []).join('\n');
@@ -143,9 +155,9 @@ async function loadConfig(){
   document.querySelectorAll('.cardcheck').forEach(el => { el.checked = active.has(el.value); });
 }
 
-// 四张卡片各有一个「保存」按钮，但都提交整份表单——分开提交容易出现
+// 每张卡片各有一个「保存」按钮，但都提交整份表单——分开提交容易出现
 // 「改了 A 卡片、B 卡片的输入框内容被服务端的旧值覆盖回去」这种别扭情况。
-const MSG_SLOTS = ['msg', 'msg2', 'msg3', 'msg4'];
+const MSG_SLOTS = ['msg', 'msg2', 'msg3', 'msg4', 'msg5'];
 
 function showMsg(html){
   MSG_SLOTS.forEach(id => { document.getElementById(id).innerHTML = html; });
@@ -159,6 +171,7 @@ async function saveConfig(){
     auto_push_interval_minutes: Math.max(1, parseInt(val('auto_push_interval_minutes')) || 10),
     auto_push_cards: cards,
     pet_species: val('pet_species'),
+    pomodoro_minutes: Math.max(1, parseInt(val('pomodoro_minutes')) || 25),
     beacon_lighter_dir: val('beacon_lighter_dir').trim(),
     beacon_stock_radar_dir: val('beacon_stock_radar_dir').trim(),
     capsule_repos: lines('capsule_repos'),

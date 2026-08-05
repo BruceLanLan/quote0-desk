@@ -23,7 +23,7 @@ from flask import Flask, jsonify, render_template, request
 import config
 import dot
 import scheduler
-from providers import hermes_inbox
+from providers import hermes_inbox, pomodoro
 from providers.todo import set_task, toggle_done
 from push import push_card, render_card
 from render import pet_sprites
@@ -60,6 +60,7 @@ CARDS = {
     "beacon": "实盘信标",
     "hermes": "Hermes 任务台",
     "hermes_inbox": "Hermes 消息",
+    "pomodoro": "番茄钟",
 }
 
 
@@ -225,6 +226,7 @@ _EXPOSED_KEYS = [
     "pet_species", "pet_repos",
     "capsule_repos",
     "beacon_lighter_dir", "beacon_stock_radar_dir",
+    "pomodoro_minutes",
 ]
 
 
@@ -284,6 +286,12 @@ def api_config():
     for key in ("beacon_lighter_dir", "beacon_stock_radar_dir"):
         if key in body:
             updates[key] = str(body[key]).strip()
+    if "pomodoro_minutes" in body:
+        try:
+            minutes = int(body["pomodoro_minutes"])
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "hint": "pomodoro_minutes 必须是数字"}), 400
+        updates["pomodoro_minutes"] = max(1, minutes)
     cfg = config.update(**updates)
     return jsonify({"ok": True, "config": cfg})
 
@@ -332,6 +340,17 @@ def t_pet_pat():
     state = pat()
     result = _safe(push_card, "pet")
     log.info("pet_pat -> state=%s push=%s", state["state"], result)
+    return jsonify({"state": state, "push": result})
+
+
+@app.route("/t/pomodoro", methods=["GET", "POST"])
+def t_pomodoro():
+    """番茄钟：贴一下开始一个专注块（空闲时），或提前结束（进行中时），
+    立刻推回屏幕。到点后的"结束了"通知走 scheduler 的 urgent 队列，不经
+    过这个路由（见 providers/pomodoro.py 的 watcher）。"""
+    state = pomodoro.toggle()
+    result = _safe(push_card, "pomodoro")
+    log.info("pomodoro -> %s push=%s", state, result)
     return jsonify({"state": state, "push": result})
 
 

@@ -33,12 +33,30 @@ _state = {
     "next_push_at": None,
 }
 
-# 事件驱动的一次性插队推送——Hermes 消息刚到、番茄钟到点这类"有时效性"的
-# 内容不应该被 round-robin 埋掉（12+ 张卡、10 分钟一轮，最坏要等 2 小时）。
-# 只是个待处理名单，不是队列本身的调度权威——_loop() 才是唯一决定"到底
-# 推不推"的地方，见下方 request_push() 的文档。
+# 事件驱动的一次性插队推送——Hermes 消息刚到这类"有时效性"的内容不应该
+# 被 round-robin 埋掉（12+ 张卡、10 分钟一轮，最坏要等 2 小时）。只是个
+# 待处理名单，不是队列本身的调度权威——_loop() 才是唯一决定"到底推不推"
+# 的地方，见下方 request_push() 的文档。
 _pending_lock = threading.Lock()
 _pending_cards: list[str] = []
+
+# 跟上面那条的区别：urgent 不受布防开关约束。番茄钟到点提醒是"用户已经
+# 用一次物理动作（贴 NFC 开始专注）明确表达了意图，现在只是在等一个必然
+# 会发生的到期通知"——不应该因为"没开自动轮换"这个不相关的开关被吞掉。
+# 绝大多数场景应该用 request_push()，这个只服务这一类狭窄场景，见
+# request_push_urgent() 的文档。
+_pending_urgent: list[str] = []
+
+# 暂停常规轮换但不影响插队推送——番茄钟专注块进行中时用，避免"专注中"
+# 这张卡被下一次轮换覆盖掉。调用方（providers/pomodoro.py）负责在专注块
+# 结束时调用 resume_rotation()，scheduler 自己不知道"什么时候该恢复"。
+_rotation_paused = threading.Event()
+
+# 每次调度线程醒来（不论布防与否）都会被调用一次的回调列表——给"番茄钟
+# 到期检测"这类需要脱离布防开关、独立定期检查的逻辑用。scheduler 不关心
+# 回调内部在检查什么业务状态，只负责按时调用它们，保持 scheduler.py 通用、
+# 不耦合具体某张卡的逻辑。
+_watchers: list = []
 
 DISARMED_POLL_SECONDS = 5  # 未布防时多久检查一次"是否被布防了"，让开关能及时生效
 MIN_INTERVAL_MINUTES = 5
@@ -66,9 +84,55 @@ def request_push(card: str):
             _pending_cards.append(card)
 
 
+def request_push_urgent(card: str):
+    """跟 request_push() 唯一的区别：**不受布防开关约束**，即使未布防
+    （`auto_push_enabled=False`，这是默认状态）也会被推送。只给"用户已经
+    通过一次明确的物理动作表达了意图，现在只是在等一个必然会发生的到期
+    通知"这种狭窄场景用——目前唯一的例子是番茄钟到点：贴 NFC 开始专注块
+    本身就是显式意图，25 分钟后的提醒不应该因为用户没开自动轮换（大多数
+    人不会开）就完全收不到。**不要把这个当成常规推送的默认选项**，绝大
+    多数事件驱动场景应该用 request_push()。
+    """
+    with _pending_lock:
+        if card not in _pending_urgent:
+            _pending_urgent.append(card)
+
+
+def register_watcher(fn):
+    """注册一个每次调度线程醒来都会被调用一次的回调（不论布防与否）。
+    回调自己决定要不要调用 request_push_urgent()，scheduler 只负责按时
+    调用它、吞掉它可能抛的异常（一个 watcher 报错不该拖垮整个调度线程）。
+    """
+    _watchers.append(fn)
+
+
+def pause_rotation():
+    """暂停常规轮换（不影响 request_push()/request_push_urgent() 的插队
+    推送）——番茄钟专注块进行中时用。调用方负责在合适的时机调用
+    resume_rotation()，scheduler 不会自己猜"该恢复了"。"""
+    _rotation_paused.set()
+
+
+def resume_rotation():
+    _rotation_paused.clear()
+
+
+def _run_watchers():
+    for fn in _watchers:
+        try:
+            fn()
+        except Exception as e:
+            log.warning("watcher 报错（不影响其它 watcher 和常规调度）: %s", e)
+
+
 def _pop_pending() -> str | None:
     with _pending_lock:
         return _pending_cards.pop(0) if _pending_cards else None
+
+
+def _pop_urgent() -> str | None:
+    with _pending_lock:
+        return _pending_urgent.pop(0) if _pending_urgent else None
 
 
 def _clear_pending():
@@ -130,8 +194,22 @@ def _tick_specific(card: str):
         _state["last_push_hint"] = result.get("hint")
 
 
+def _drain_urgent():
+    """把 urgent 队列清空——不论布防与否都要在每次醒来时做这件事。跟
+    watcher 一起放在 _loop() 顶部和 _sleep_until_next_tick() 的轮询里，
+    是这个模块里两处"不受布防约束"的检查点，缺一个都会让番茄钟到点提醒
+    在未布防（默认状态）时延迟到最长 DISARMED_POLL_SECONDS 或 interval_min
+    才被发现。"""
+    urgent = _pop_urgent()
+    if urgent is not None:
+        _tick_specific(urgent)
+
+
 def _loop():
     while not _stop_event.is_set():
+        _run_watchers()  # 番茄钟到期检测这类，不受布防开关约束
+        _drain_urgent()
+
         cfg = config.load()
         armed = bool(cfg.get("auto_push_enabled"))
         interval_min = max(MIN_INTERVAL_MINUTES, int(cfg.get("auto_push_interval_minutes", 10) or 10))
@@ -140,11 +218,20 @@ def _loop():
             _state["armed"] = armed
 
         if not armed:
-            # 布防语义必须唯一：没布防就不该有任何自动推送，包括事件驱动的
-            # 插队请求——不能让 request_push() 变成绕过这个开关的后门。
+            # 布防语义必须唯一：没布防就不该有任何常规自动推送，包括事件
+            # 驱动的插队请求——不能让 request_push() 变成绕过这个开关的
+            # 后门。urgent 队列不受这条约束，已经在上面 _drain_urgent()
+            # 处理过了，这里清空的只是普通 pending。
             _clear_pending()
             with _state_lock:
                 _state["next_push_at"] = None
+            _stop_event.wait(DISARMED_POLL_SECONDS)
+            continue
+
+        if _rotation_paused.is_set():
+            # 番茄钟专注块进行中：跳过本轮常规轮换，让"专注中"这张卡
+            # 留在屏幕上，但插队/urgent 推送（已经在上面处理过）和布防
+            # 开关的响应速度都不受影响。
             _stop_event.wait(DISARMED_POLL_SECONDS)
             continue
 
@@ -165,14 +252,22 @@ def _sleep_until_next_tick(interval_min: int):
        用 `_tick_specific()` 推掉，**不提前结束这次等待**、也不碰
        `next_push_at`：常规轮换的时间表和游标完全不受插队影响，插队
        推送只是塞进了这段等待期里的一次"额外"推送。
+    3. watcher 回调 + urgent 队列——不受布防约束，跟 _loop() 顶部同一套
+       检查，这里也要做一遍，因为大部分时间调度线程都阻塞在这个函数里
+       （常规轮换间隔可以长达数十分钟），不这样做的话番茄钟到点通知得
+       等到当前这轮常规轮换周期结束才会被发现。
     """
     deadline = time.monotonic() + interval_min * 60
     while time.monotonic() < deadline:
         remaining = deadline - time.monotonic()
         if _stop_event.wait(min(DISARMED_POLL_SECONDS, remaining)):
             return  # 线程被要求整体停止
+        _run_watchers()
+        _drain_urgent()
         if not config.load().get("auto_push_enabled"):
             return  # 布防被中途关掉，提前结束这次等待，让下一轮循环立刻反映新状态
+        if _rotation_paused.is_set():
+            return  # 专注块中途开始了，提前结束这次等待，让 _loop() 顶部去跳过常规轮换
         pending = _pop_pending()
         if pending is not None:
             _tick_specific(pending)
