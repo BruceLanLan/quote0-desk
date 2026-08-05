@@ -150,6 +150,7 @@ bash scripts/uninstall_launchd.sh
 | 时间胶囊 | `push capsule` | 本机 git 仓库历史里"一年前/一个月前/一周前的今天"提交 |
 | 实盘信标 | `push beacon` | 只读展示交易策略持仓 + 选股信号，不导入对应项目的代码/密钥 |
 | Hermes 任务台 | `push hermes` | 只读展示本机 [hermes-agent](https://github.com/NousResearch/hermes-agent) gateway 的定时任务列表；可选集成，没装 Hermes 或 gateway 没起时显示"未接入" |
+| Hermes 消息 | 见下方「Hermes Agent 集成」 | 展示 Hermes agent 主动推来的最新一条消息（agent 消息 / cron job 结果），不是自己去问，是被动接收 |
 
 新加一张卡该怎么接，见 [`docs/ADDING-A-CARD.md`](docs/ADDING-A-CARD.md)。
 
@@ -204,6 +205,12 @@ python3 server.py             # 常驻运行，调度线程随 Flask 一起启�
 ## MCP：让 Claude 直接操作 Quote/0
 
 `mcp_server/` 是一个独立的 MCP server，把具体卡片暴露成工具（`draw_hexagram()`、`pat_pet()`、`set_today_task(...)` 这类），不是通用的文本/图片透传——那个方向 MindReset 生态里已经有好几个实现了。用法见 [`mcp_server/README.md`](mcp_server/README.md)；它需要 Python 3.10+（跟主项目的 3.9 环境分开跑），只是主项目 `/api/*` 接口的一个 HTTP 客户端，不侵入主项目本身。
+
+## Hermes Agent 集成
+
+[`hermes-quote0/`](hermes-quote0/) 是 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 的一个平台插件，让 Hermes 的 agent 消息 / cron job 结果能直接送到 Quote/0 屏幕上——跟 Telegram/Discord 这些官方投递渠道是同一个机制，Hermes 那边不需要改任何核心代码。用法见 [`hermes-quote0/README.md`](hermes-quote0/README.md)。
+
+真机验证过完整链路：装上插件后，一个 `deliver=quote0` 的 cron job 能把结果端到端送上屏幕（对应「Hermes 消息」卡），屏幕上固定带 `Hermes Agent` 签名、不接受 agent 自己指定 NFC 链接——这条硬约束是防 prompt injection 的，agent 生成的内容不可信，不能让它决定物理贴一下之后打开哪个网址。这是可选集成，没装 Hermes 的话「Hermes 消息」「Hermes 任务台」两张卡就是空的，不影响其它功能。
 
 ## 开发状态
 
