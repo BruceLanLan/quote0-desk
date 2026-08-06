@@ -10,6 +10,16 @@
 
 MindReset 官方生态里已有 20 多个第三方项目（Home Assistant 集成、用量看板、MCP server 等），基本都是单向数据面板：内容推上去就结束了。这个项目的差异化是把设备自带的 NFC 也用了起来，构成一个完整闭环：贴一下手机 → 打开这张卡对应的回调地址 → 服务器执行一个动作（喂宠物、抽一签、打卡、翻下一句箴言）→ 新内容立即推回屏幕。
 
+## 一天的使用场景
+
+- **早上**：屏幕显示昨晚睡前推的日课干支，摸一下屏上宠物，NFC 触发它切到"精神"状态。
+- **写代码时**：跟 Claude 说一句"记一下，这个 bug 是上游 API 返回顺序变了"，屏幕上多出一行带时间戳的记录——不用切窗口、不用打开手机。
+- **专注块**：贴一下开始一个番茄钟，屏幕显示起止时刻，专注块进行中不会被自动轮换打断。
+- **拿不准的决定**：跟 Claude 说"帮我起一卦，问这个方案要不要推翻重做"，几天后 Quote/0 会自己提醒你回来看"应了吗"，不需要主动想起来去问。
+- **下班路上**：贴一下签筒，随机抽一次摇卦或奇门遁甲，纯粹是个不需要理由的小仪式。
+
+这几个场景背后是两条不同的输入路径：**NFC 贴一下**（面向已经站在设备前的即时触发）和**跟 Claude 对话**（面向"这句话此刻在脑子里，屏幕应该记住它"，见下方 [MCP](#mcp让-claude-直接操作-quote0) 一节）。
+
 ## 特性
 
 - **NFC 闭环**：贴一下手机，服务器执行动作，新内容立刻推回屏幕，不是"扫码看详情"式的单向跳转。
@@ -74,10 +84,11 @@ python3 cli.py set-todo "今天要做的事"
 
 ## 本地控制台
 
-`python3 server.py` 启动后，打开 `http://localhost:5252` 即为网页控制台：设备在线状态、当前屏幕实际显示内容、每张卡的"预览"（执行一次 `build()` 但不推送）与"推送"按钮、自动轮换的布防状态均在此页面。`/settings` 为配置页，用于修改 NFC 回调地址、开关自动轮换、勾选参与轮换的卡，无需手动编辑 `config.json` 或拼接 `curl` 命令。
+`python3 server.py` 启动后，打开 `http://localhost:5252` 即为网页控制台：设备在线状态、当前屏幕实际显示内容、每张卡的"预览"（执行一次 `build()` 但不推送）与"推送"按钮、自动轮换的布防状态均在此页面。15 张内容卡按用途分组显示（互动卡片 / 记录与提醒 / 信息展示 / Hermes 集成），每张卡带一句功能说明，不是一份不作区分的平铺列表。`/settings` 为配置页，用于修改 NFC 回调地址、开关自动轮换、勾选参与轮换的卡，无需手动编辑 `config.json` 或拼接 `curl` 命令。
 
 <p align="center">
-  <img src="docs/img/dashboard.png" width="45%" alt="本地控制台首页：设备状态、当前屏幕内容、每张卡的预览/推送按钮">
+  <img src="docs/img/dashboard.png" width="45%" alt="本地控制台首页：设备状态、当前屏幕内容、按用途分组的内容卡列表">
+  <img src="docs/img/settings_preview.png" width="45%" alt="配置页：NFC 回调地址、自动轮换开关与周期设置">
 </p>
 
 控制台 UI 结构参照同作者姊妹项目 [pocket-prophet-dashboard](https://github.com/BruceLanLan/pocket-prophet-dashboard)：`templates/*.html` + 一层 `/api/*` JSON 接口，基于 Flask 自带的 Jinja2，未引入额外依赖。手机与本机处于同一局域网时，手机浏览器打开 `http://<本机局域网 IP>:5252` 同样可用。
@@ -216,13 +227,13 @@ python3 server.py             # 常驻运行，调度线程随 Flask 一起启�
 
 其中 `board_note(label, value)` 是唯一一个"内容由当次对话决定"的工具，其余工具的内容来源分别是计算得出（日课/奇门）、读取现有数据（状态灯/信标）或随机生成（箴言/签筒）。该工具的参数为必填项，信息不全时 Claude 会主动追问，无需额外编写"追问缺失信息"的逻辑。`cast_with_question(question)` 是同一思路在玄学方向的延伸：跟 Claude 说一个具体问题起一卦，到期后 Quote/0 会主动提醒回看"应了吗"——这种跨越时间的主动提醒，依赖的是一块常驻屏幕，手机端的对话式应用无法提供同等体验。
 
-## Hermes Agent 集成
+## Hermes Agent / Hermes Studio 集成
 
-[`hermes-quote0/`](hermes-quote0/) 是 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 的一个平台插件，用于将 Hermes 的 agent 消息或 cron job 结果直接投递到 Quote/0 屏幕，机制与 Telegram/Discord 等官方投递渠道一致，Hermes 核心代码无需改动。用法见 [`hermes-quote0/README.md`](hermes-quote0/README.md)。
+[Hermes Agent](https://github.com/NousResearch/hermes-agent)（NousResearch 的开源 agent 网关）与 [Hermes Studio](https://hermes-studio.ai)（[JPeetz/Hermes-Studio](https://github.com/JPeetz/Hermes-Studio)，Hermes Agent 的自托管 Web 控制台）是两个不同层面的项目：前者是后端网关，后者是跑在网关之上的浏览器界面。这两层的集成进度不同：
 
-完整链路已完成真机验证：安装插件后，一个 `deliver=quote0` 的 cron job 能将结果端到端送达屏幕（对应「Hermes 消息」卡）。屏幕固定带 `Hermes Agent` 签名，不接受 agent 自行指定 NFC 链接——这是防 prompt injection 的硬约束：agent 生成的内容不可信任，不能让其决定物理贴一下之后打开的目标地址。该集成为可选项，未安装 Hermes 时「Hermes 消息」「Hermes 任务台」两张卡为空，不影响其余功能。
+**网关层（已完成，真机验证过）**：[`hermes-quote0/`](hermes-quote0/) 是 Hermes Agent 的一个平台插件，把 agent 消息或 cron job 结果直接投递到 Quote/0 屏幕，机制与 Telegram/Discord 等官方投递渠道一致，Hermes 核心代码无需改动。用法见 [`hermes-quote0/README.md`](hermes-quote0/README.md)。完整链路已完成真机验证：安装插件后，一个 `deliver=quote0` 的 cron job 能将结果端到端送达屏幕（对应「Hermes 消息」卡）。屏幕固定带 `Hermes Agent` 签名，不接受 agent 自行指定 NFC 链接——这是防 prompt injection 的硬约束：agent 生成的内容不可信任，不能让其决定物理贴一下之后打开的目标地址。该集成为可选项，未安装 Hermes 时「Hermes 消息」「Hermes 任务台」两张卡为空，不影响其余功能。
 
-尚未进行的是向 Hermes Studio 官方提交集成申请或建立正式合作——目前的决定是插件保持独立可用、暂不推动这一步。
+**Studio 层（未完成，已定位改动点）**：Hermes Studio 的 Cron 任务对话框（`create-job-dialog.tsx` / `edit-job-dialog.tsx`）有一个硬编码的投递渠道列表 `DELIVERY_OPTIONS = ['local', 'telegram', 'discord']`——quote0 网关插件已经支持 `deliver=quote0`，但 Studio 界面上选不出这个选项，只能靠命令行手动建 cron job。补上需要往这两个文件的数组里各加一行 `'quote0'`，是一处集中、可核实的改动，不影响其它平台的行为。这个改动没有提交——向 [JPeetz/Hermes-Studio](https://github.com/JPeetz/Hermes-Studio) 开 PR/issue 属于对外发布行为，尚未执行。
 
 ## 开发状态
 
@@ -232,6 +243,7 @@ M0（真机契约验证）至 M6（调度器 + 隐私审查）已完成，NFC �
 
 - 验证 `shortcuts://` scheme 能否通过 NFC 直接触发 iOS 快捷指令
 - 提交 Quote/0 官方 co_create showcase
+- 是否向 Hermes Studio 提交 Cron 投递渠道的 PR/issue（诊断已完成，见上，等待决定）
 
 ## License
 
