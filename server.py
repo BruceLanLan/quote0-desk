@@ -476,18 +476,48 @@ def t_probe_form():
     本身是一次性的，不需要长期保留成正式功能。
     """
     if request.method == "GET":
+        # 样式跟 templates/settings.html 同一套配色（背景 #f5f3ee、白色圆角
+        # 卡片、深色按钮），保持全站视觉一致——内联 CSS，不加外部资源/字体/
+        # JS，Dot App 内置浏览器那种可能功能残缺的 WebView 也要能正常渲染。
         html = """<!doctype html><html><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:sans-serif;padding:24px;font-size:18px">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>quote0-desk · 探针</title>
+<style>
+body{font-family:-apple-system,Helvetica,Arial,sans-serif;background:#f5f3ee;color:#1d1d1f;margin:0;padding:24px 18px;max-width:420px;margin-left:auto;margin-right:auto}
+h1{font-size:18px;margin:4px 0 4px}
+.hint{font-size:13px;color:#6e6e73;margin:0 0 18px;line-height:1.5}
+.card{background:#fff;padding:20px;border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.07)}
+label{display:block;font-size:13px;color:#6e6e73;margin-bottom:8px}
+input[type=text]{width:100%;box-sizing:border-box;border:1px solid #e3ded5;border-radius:12px;background:#fbfaf7;color:#1d1d1f;font-size:16px;padding:14px}
+.btn{width:100%;background:#111;color:#fff;padding:15px;text-align:center;border:0;border-radius:12px;font-size:17px;cursor:pointer;margin-top:14px}
+</style></head>
+<body>
+<h1>quote0-desk</h1>
+<p class="hint">NFC 输入探针 · 随便写点什么，测试贴一下能不能把文字传回来</p>
+<div class="card">
 <form method="POST">
-<label>随便写点什么：</label><br>
-<input type="text" name="value" style="font-size:18px;padding:8px;width:80%"><br><br>
-<button type="submit" style="font-size:18px;padding:10px 24px">提交</button>
-</form></body></html>"""
+<label>内容</label>
+<input type="text" name="value" autofocus>
+<button type="submit" class="btn">提交</button>
+</form>
+</div>
+</body></html>"""
         return html
     value = request.form.get("value", "")
     log.info("probe_form POST value=%r", value)
-    return f"收到：{value}"
+    html = f"""<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>quote0-desk · 探针</title>
+<style>
+body{{font-family:-apple-system,Helvetica,Arial,sans-serif;background:#f5f3ee;color:#1d1d1f;margin:0;padding:24px 18px;max-width:420px;margin-left:auto;margin-right:auto;text-align:center}}
+.card{{background:#fff;padding:28px 20px;border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.07);margin-top:40px}}
+.ok{{font-size:32px;margin-bottom:8px}}
+.value{{font-size:16px;color:#1d1d1f;word-break:break-all}}
+</style></head>
+<body>
+<div class="card"><div class="ok">✓</div><div>收到：<span class="value">{value}</span></div></div>
+</body></html>"""
+    return html
 
 
 if __name__ == "__main__":
