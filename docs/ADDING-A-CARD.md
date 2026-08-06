@@ -73,10 +73,20 @@ python3 cli.py arm
 
 如果新卡要读某个本地项目/文件（参照 `providers/beacon.py`、`capsule.py` 的做法），不要把路径写成模块顶部的常量——那是早期做法，2026-08-04 之后已经全部搬进 `config.json`。正确做法是在 `config.py` 的 `DEFAULTS` 里加一项（默认值就是你自己机器上的路径，别人 clone 了改配置就行，不用碰源码），provider 里用 `config.path_setting("你的键名")`（单个路径）或 `config.path_list_setting("你的键名")`（路径列表）读，两个函数都会自动 `expanduser` 并在值为空时退回默认值。读不到文件时要优雅降级（返回"暂无数据"而不是抛异常）。加完记得：`server.py` 的 `_EXPOSED_KEYS` 加一行让设置页能读写，`templates/settings.html`「路径配置」卡片加一个输入框，README 的「自己部署：需要改的几处」一节同步一行。
 
+## 让新卡出现在控制台
+
+`server.py` 的 `CARDS` 字典（`{key: 中文名}`）是唯一的权威来源——`/api/cards` 从这里读，加了才算存在。但**只加 `CARDS` 是不够的**：`templates/index.html` 的首页把卡片按用途分组展示（互动卡片/记录与提醒/信息展示/Hermes 集成），分组信息不是自动推导的，是前端 JS 里手写的两处：
+
+- `CARD_META[key]`：图标 + 一句功能说明，不加的话会退回默认的 📎 图标和空说明，不会报错
+- `CARD_GROUPS[].keys`：决定这张卡归到哪个分组标题下——**这一步不能漏**，没出现在任何分组的 `keys` 数组里的卡，即使在 `CARDS`/`CARD_META` 里都注册了，也不会在首页渲染出来（`buildCardList()` 只遍历 `CARD_GROUPS`，不会兜底遍历 `CARDS` 里剩下的键）
+
+`templates/settings.html` 的「轮换哪些卡」勾选列表是直接遍历 `CARDS` 生成的，不受 `CARD_GROUPS` 影响，加了 `CARDS` 就会出现，这点跟首页不一样。
+
 ## 检查清单
 
 - [ ] `build()` 返回的 dict 有 `alias`，`link` 要么是真实 NFC 地址要么是空字符串（不是 `None`）
 - [ ] 新增的本地路径配置项放进 `config.py` 的 `DEFAULTS`、用 `path_setting`/`path_list_setting` 读，读不到时不崩溃
 - [ ] 需要 NFC 的话，`server.py` 的路由和 README 的「NFC 回调服务」路由表都加了对应行
+- [ ] `server.py` 的 `CARDS` 字典加了一行；`templates/index.html` 的 `CARD_META` 和某个 `CARD_GROUPS[].keys` 也加了，否则首页看不到这张卡
 - [ ] `python3 cli.py push <name>` 跑一遍，`python3 cli.py snapshot out.png` 确认真机渲染符合预期
 - [ ] API Key / 设备序列号 / 局域网信息全部走环境变量或占位符，`git grep` 一下确认没有硬编码进新文件
