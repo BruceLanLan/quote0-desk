@@ -151,7 +151,7 @@ bash scripts/uninstall_launchd.sh
 | 今日一件事 | `push todo` / `set-todo "..."` | 单条每日承诺，NFC 打卡 |
 | 番茄钟 | `push pomodoro` | 贴一下开始一个专注块（屏幕显示起止时刻，不走秒），进行中不会被自动轮换覆盖，到点自动推送通知——不依赖开没开自动轮换 |
 | 状态板 | `push agent_board` | 跟 Claude 说一句话（"帮我记一下，答应老王周五给方案"），屏幕上多一行带时间戳的记录，最多同时显示 5 行；只能靠对话写入，不会自己去抓任何数据 |
-| 应期复盘 | `push oracle_review` | 跟 Claude 说一个问题起一卦（"帮我起一卦，问这周的面试能不能过"），7 天后自动提醒回看"应了吗"，不需要开自动轮换；带历史命中率 |
+| 应期复盘 | `push oracle_review` | 跟 Claude 说一个问题起一卦（"帮我起一卦，问这周的面试能不能过"），过一段时间（默认 7 天，设置页可改）自动提醒回看"应了吗"，不需要开自动轮换；带历史命中率 |
 | 时间胶囊 | `push capsule` | 本机 git 仓库历史里"一年前/一个月前/一周前的今天"提交 |
 | 实盘信标 | `push beacon` | 只读展示交易策略持仓 + 选股信号，不导入对应项目的代码/密钥 |
 | Hermes 任务台 | `push hermes` | 只读展示本机 [hermes-agent](https://github.com/NousResearch/hermes-agent) gateway 的定时任务列表；可选集成，没装 Hermes 或 gateway 没起时显示"未接入" |
