@@ -144,10 +144,11 @@ def board_note(label: str, value: str) -> str:
 
 @mcp.tool()
 def cast_with_question(question: str) -> str:
-    """带着一个具体问题起一卦，立刻推到屏幕，7 天后 Quote/0 会自动提醒
-    回看"应了吗"（不需要开自动轮换，到点会自己插队推送）。question 应该
-    是用户实际问的那句话（比如"这周的面试能不能过"），不要替用户编问题、
-    也不要在没有明确问题时替用户假设一个。"""
+    """带着一个具体问题起一卦，立刻推到屏幕，过一段时间（默认 7 天，
+    在设置页可改）Quote/0 会自动提醒回看"应了吗"（不需要开自动轮换，
+    到点会自己插队推送）。question 应该是用户实际问的那句话（比如
+    "这周的面试能不能过"），不要替用户编问题、也不要在没有明确问题时
+    替用户假设一个。"""
     r = _post("/api/oracle/cast", body={"question": question})
     if not r.get("ok"):
         return f"起卦失败：{r.get('hint', '未知错误')}"
@@ -155,7 +156,10 @@ def cast_with_question(question: str) -> str:
     hexagram = entry["hexagram"]
     if entry.get("changed_hexagram"):
         hexagram = f"{hexagram}→{entry['changed_hexagram']}"
-    return f"问「{question}」得卦：{hexagram}，已推到屏幕，7 天后会提醒你回看"
+    # 天数从这次起卦的实际时间戳算，不写死默认值——oracle_review_days
+    # 在设置页可改，硬编码"7 天"会在用户改过配置后说谎。
+    review_days = round((entry["review_at"] - entry["cast_at"]) / 86400)
+    return f"问「{question}」得卦：{hexagram}，已推到屏幕，{review_days} 天后会提醒你回看"
 
 
 @mcp.tool()

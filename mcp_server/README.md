@@ -56,7 +56,7 @@ python3 server.py   # 或者已经按 README 装了 launchd 常驻服务
 | `set_today_task(task)` | 设置今日一件事并推送 |
 | `toggle_today_task()` | 切换今日任务完成状态 |
 | `board_note(label, value)` | 在状态板上记一行（同 label 覆盖，最多 5 行），立刻推送 |
-| `cast_with_question(question)` | 带问题起一卦，7 天后自动提醒回看"应了吗" |
+| `cast_with_question(question)` | 带问题起一卦，过一段时间（默认 7 天，设置页可改）自动提醒回看"应了吗" |
 | `oracle_verdict(answer)` | 回答最近一次到期的应期复盘（"yes"/"no"） |
 | `get_device_status()` | 只读查看设备在线状态 |
 | `list_cards()` | 列出全部内容卡 |

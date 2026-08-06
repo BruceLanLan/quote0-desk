@@ -11,7 +11,7 @@ App 那样弹"是/否"两个按钮，所以这里贴一下固定对应"应验了
 """
 from __future__ import annotations
 
-from datetime import datetime
+import time
 
 from canvas.template import simple_data
 from config import nfc_base_url
@@ -28,7 +28,12 @@ def build() -> dict:
         message = f"暂无到期的卦\n{hit_line}"
         link = ""
     else:
-        days = max(0, int((due["review_at"] - due["cast_at"]) / 86400))
+        # 用"现在"减起卦时间，不是 review_at 减 cast_at——后者永远等于
+        # 设定的应期天数（比如配了 7 天，这个差值永远是 7），不随时间
+        # 变化；watcher 检测有延迟、或者用户隔了几天才回来看这张卡时，
+        # 真实经过的天数会比设定值大，必须用当前时刻算，不能用两个
+        # 固定时间戳的差值冒充"距今多久"。
+        days = max(0, int((time.time() - due["cast_at"]) / 86400))
         hexagram = due["hexagram"]
         if due.get("changed_hexagram"):
             hexagram = f"{hexagram}→{due['changed_hexagram']}"
