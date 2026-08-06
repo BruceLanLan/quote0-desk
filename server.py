@@ -43,8 +43,6 @@ log = logging.getLogger("quote0-desk")
 
 app = Flask(__name__)
 
-_counter_state = {"n": 0}
-
 # 控制台"全部内容卡"列表要用的中文名——README 的表格是给人读的 markdown，
 # 这里是给前端渲染下拉/按钮用的同一份信息，两处手动保持一致（卡片本身
 # 没有一个"人类可读名"的字段，build() 的 alias 是给 Dot App 任务记录看的，
@@ -66,15 +64,6 @@ CARDS = {
     "agent_board": "状态板",
     "oracle_review": "应期复盘",
 }
-
-
-def _push_counter():
-    d = dot.resolve_device_id()
-    n = _counter_state["n"]
-    base = config.nfc_base_url()
-    link = f"{base}/t/counter_tap" if base else ""
-    return dot.push_text(d, title=str(n), message="贴一下 +1", signature="quote0-desk · NFC 计数器",
-                          link=link, refresh_now=True, task_alias="NFC 计数器")
 
 
 def _safe(fn, *args, **kwargs) -> dict:
@@ -246,9 +235,8 @@ def api_oracle_cast():
 
     不走 `push_card("liuyao")`——那张卡的 `build()` 语义是"现摇一卦"，
     会重新调一次 `cast_hexagram()`，随机结果就跟 `oracle.cast()` 已经
-    记进日志的卦象对不上了。这里直接调渲染 + 推送，跟 `_push_counter()`
-    一样是绕开 `cards/` 抽象层的特例，因为需要渲染和存储共用同一份
-    随机结果。
+    记进日志的卦象对不上了。这里直接调渲染 + 推送，绕开 `cards/` 抽象层，
+    因为需要渲染和存储共用同一份随机结果。
     """
     body = request.get_json(force=True, silent=True) or {}
     question = str(body.get("question") or "").strip()
@@ -383,15 +371,6 @@ def api_config():
     return jsonify({"ok": True, "config": cfg})
 
 
-@app.route("/t/counter_tap", methods=["GET", "POST"])
-def t_counter_tap():
-    """M2 最小验证：贴一下数字 +1，立刻推回屏幕。"""
-    _counter_state["n"] += 1
-    result = _safe(_push_counter)
-    log.info("counter_tap -> n=%s push=%s", _counter_state["n"], result)
-    return jsonify({"n": _counter_state["n"], "push": result})
-
-
 @app.route("/t/todo_toggle", methods=["GET", "POST"])
 def t_todo_toggle():
     """今日一件事打卡：贴一下切换完成状态，立刻推回屏幕。"""
@@ -462,62 +441,6 @@ def t_ping():
     """
     log.info("ping hit")
     return jsonify({"ok": True, "message": "NFC/浏览器成功打开了这个 URL"})
-
-
-@app.route("/t/probe_form", methods=["GET", "POST"])
-def t_probe_form():
-    """一次性探针：NFC 目前六个 /t/* 路由全是零参数的（贴一下=执行一个固定
-    动作），从没验证过"贴一下能不能打开一个可输入的网页并成功提交"。这条
-    结论决定后续"带问题的卦""NFC 改宠物名"这类功能能不能做，所以先用一个
-    极简表单探一次——纯 HTML，无 JS、无外部资源，尽量兼容 Dot App 内置浏览器
-    这种可能功能残缺的 WebView。
-
-    验证完这条如果证实可行，`docs/DEVICE-FACTS.md` 记一笔就行，这个路由
-    本身是一次性的，不需要长期保留成正式功能。
-    """
-    if request.method == "GET":
-        # 样式跟 templates/settings.html 同一套配色（背景 #f5f3ee、白色圆角
-        # 卡片、深色按钮），保持全站视觉一致——内联 CSS，不加外部资源/字体/
-        # JS，Dot App 内置浏览器那种可能功能残缺的 WebView 也要能正常渲染。
-        html = """<!doctype html><html><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>quote0-desk · 探针</title>
-<style>
-body{font-family:-apple-system,Helvetica,Arial,sans-serif;background:#f5f3ee;color:#1d1d1f;margin:0;padding:24px 18px;max-width:420px;margin-left:auto;margin-right:auto}
-h1{font-size:18px;margin:4px 0 4px}
-.hint{font-size:13px;color:#6e6e73;margin:0 0 18px;line-height:1.5}
-.card{background:#fff;padding:20px;border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.07)}
-label{display:block;font-size:13px;color:#6e6e73;margin-bottom:8px}
-input[type=text]{width:100%;box-sizing:border-box;border:1px solid #e3ded5;border-radius:12px;background:#fbfaf7;color:#1d1d1f;font-size:16px;padding:14px}
-.btn{width:100%;background:#111;color:#fff;padding:15px;text-align:center;border:0;border-radius:12px;font-size:17px;cursor:pointer;margin-top:14px}
-</style></head>
-<body>
-<h1>quote0-desk</h1>
-<p class="hint">NFC 输入探针 · 随便写点什么，测试贴一下能不能把文字传回来</p>
-<div class="card">
-<form method="POST">
-<label>内容</label>
-<input type="text" name="value" autofocus>
-<button type="submit" class="btn">提交</button>
-</form>
-</div>
-</body></html>"""
-        return html
-    value = request.form.get("value", "")
-    log.info("probe_form POST value=%r", value)
-    html = f"""<!doctype html><html><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>quote0-desk · 探针</title>
-<style>
-body{{font-family:-apple-system,Helvetica,Arial,sans-serif;background:#f5f3ee;color:#1d1d1f;margin:0;padding:24px 18px;max-width:420px;margin-left:auto;margin-right:auto;text-align:center}}
-.card{{background:#fff;padding:28px 20px;border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.07);margin-top:40px}}
-.ok{{font-size:32px;margin-bottom:8px}}
-.value{{font-size:16px;color:#1d1d1f;word-break:break-all}}
-</style></head>
-<body>
-<div class="card"><div class="ok">✓</div><div>收到：<span class="value">{value}</span></div></div>
-</body></html>"""
-    return html
 
 
 if __name__ == "__main__":
