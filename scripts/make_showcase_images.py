@@ -14,6 +14,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from PIL import Image, ImageDraw
 
 from render.pet import render as render_pet
+from render.rows import build_rows_png
+import base64
+import io
 
 IMG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs", "img")
 
@@ -49,7 +52,7 @@ def side_by_side(left: Image.Image, right: Image.Image, gap: int = 28) -> Image.
 
 
 def upgrade_existing():
-    for name in ("pet", "liuyao", "qimen", "proverb"):
+    for name in ("pet", "liuyao", "qimen", "proverb", "pomodoro", "oracle_review"):
         src = os.path.join(IMG_DIR, f"{name}.png")
         if not os.path.exists(src):
             print(f"skip {name}: 原图不存在")
@@ -80,6 +83,23 @@ def make_pet_state_grid():
     print(f"pet_states.png {grid.size}")
 
 
+def make_agent_board_hero():
+    """状态板卡：走 Image API，跟 pet/liuyao/qimen 一样，本地渲染出来的
+    图就是会被原样推上设备的那份——2026-08-06 用示例数据推过真机，
+    MD5 比对跟这里本地生成的图完全一致，不是二次加工。示例内容是虚构的
+    演示数据，不是任何人的真实记录；时间戳前缀是 cards/agent_board.py
+    实际会加的格式（HH:MM · value），这里手动拼一份保持展示图跟真实
+    卡面一致。"""
+    rows = [("喂奶", "20:33 · 80ml"), ("读书", "21:05 · 卡在第3章"), ("承诺", "21:12 · 周五给老王方案")]
+    data_url = build_rows_png("状态板", rows, footer="quote0-desk · 状态板")
+    b64 = data_url.split(",", 1)[1]
+    img = Image.open(io.BytesIO(base64.b64decode(b64))).convert("RGB")
+    img.save(os.path.join(IMG_DIR, "agent_board.png"))
+    out = bezel_frame(img)
+    out.save(os.path.join(IMG_DIR, "agent_board_hero.png"))
+    print(f"agent_board_hero.png {out.size}")
+
+
 def make_pet_pat_before_after():
     before_state = {"species": "duck", "state": "idle", "frame_index": 0, "last_active_label": "08-04 11:58"}
     after_state = {"species": "duck", "state": "heart", "frame_index": 0, "last_active_label": "08-04 12:00"}
@@ -95,3 +115,4 @@ if __name__ == "__main__":
     upgrade_existing()
     make_pet_state_grid()
     make_pet_pat_before_after()
+    make_agent_board_hero()

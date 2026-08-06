@@ -43,6 +43,16 @@
   <img src="docs/img/pet_states.png" width="90%" alt="宠物六态网格：睡着/空闲/工作中/等待批准/里程碑庆祝/被摸摸">
 </p>
 
+跟 Claude 说一句话，屏幕上就多一行记录或一次提醒——不用打开手机、不用贴 NFC：
+
+<p align="center">
+  <img src="docs/img/agent_board_hero.png" width="45%" alt="状态板卡：跟 Claude 说的话变成带时间戳的多行记录">
+  <img src="docs/img/oracle_review_hero.png" width="45%" alt="应期复盘卡：几天前问的问题，到期自动提醒回看应验了没有">
+</p>
+<p align="center">
+  <img src="docs/img/pomodoro_hero.png" width="45%" alt="番茄钟卡：专注块起止时刻，不走秒">
+</p>
+
 ## 快速开始
 
 ```bash
@@ -221,7 +231,7 @@ python3 server.py             # 常驻运行，调度线程随 Flask 一起启�
 
 ## 开发状态
 
-M0（真机契约验证）到 M6（调度器 + 隐私审查）已完成，NFC 反馈闭环（项目的核心假设）已真机验证通过，完整记录见 [`docs/DEVICE-FACTS.md`](docs/DEVICE-FACTS.md)。
+M0（真机契约验证）到 M6（调度器 + 隐私审查）已完成，NFC 反馈闭环（项目的核心假设）已真机验证通过；事件驱动推送（有时效性的内容不用等自动轮换才被看到）、对话式写入（状态板 / 应期复盘）也已经真机验证通过。完整记录见 [`docs/DEVICE-FACTS.md`](docs/DEVICE-FACTS.md)。
 
 接下来打算做的：
 
