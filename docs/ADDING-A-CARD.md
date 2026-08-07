@@ -82,6 +82,15 @@ python3 cli.py arm
 
 `templates/settings.html` 的「轮换哪些卡」勾选列表是直接遍历 `CARDS` 生成的，不受 `CARD_GROUPS` 影响，加了 `CARDS` 就会出现，这点跟首页不一样。
 
+## 卡片需要专属控件（不只是"推一下"）？
+
+`buildCardList()` 默认给每张卡渲染一行统一样式（图标+说明+推送按钮）。如果新卡需要额外交互——参照换壁纸卡的文件上传按钮——两处要改：
+
+- `templates/index.html` 里 `renderCardRow()` 按 `key` 特判，插入专属的 HTML（输入框/按钮/状态展示），参照 `key === 'wallpaper'` 那段
+- 专属交互如果要落状态到服务端（不是简单调用 `push_card()`），在 `server.py` 加对应的 `/api/<name>/...` 路由，不要塞进通用的 `/api/push` 里——参照 `/api/wallpaper/upload`、`/api/wallpaper/reset`、`/api/wallpaper/status` 三条
+
+大多数卡不需要这一步，纯展示或纯 NFC 触发的卡用默认行就够。
+
 ## 检查清单
 
 - [ ] `build()` 返回的 dict 有 `alias`，`link` 要么是真实 NFC 地址要么是空字符串（不是 `None`）
