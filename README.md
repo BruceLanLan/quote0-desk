@@ -38,43 +38,30 @@ MindReset 官方生态里已有 20 多个第三方项目（Home Assistant 集成
 
 ## 效果预览
 
-<p align="center">
-  <img src="docs/img/pet_pat_before_after.png" width="90%" alt="摸摸屏上宠物前后对比：左边空闲状态，贴一下 NFC 后右边变成开心状态">
-</p>
-
-左图为宠物默认状态，右图为手机贴一下 `/t/pet_pat` 后立即推回屏幕的结果。两张图均为 `render/pet.py` 本地生成，与实际推送到设备的是同一份图像。NFC 触发屏幕变化的真机验证记录见 [`docs/DEVICE-FACTS.md`](docs/DEVICE-FACTS.md) 的 M2 一节。
+手机贴一下 NFC，屏幕立刻从左图变成右图——这是整个项目唯一的闭环证明，NFC 触发屏幕变化的真机验证记录见 [`docs/DEVICE-FACTS.md`](docs/DEVICE-FACTS.md) 的 M2 一节：
 
 <p align="center">
-  <img src="docs/img/pet_hero.png" width="45%" alt="屏上宠物卡：ASCII 造型，状态由真实活动信号驱动">
-  <img src="docs/img/liuyao_hero.png" width="45%" alt="摇卦卡：六爻爻线 + 卦名判断">
-</p>
-<p align="center">
-  <img src="docs/img/qimen_hero.png" width="45%" alt="奇门遁甲卡：九宫格排盘">
-  <img src="docs/img/proverb_hero.png" width="45%" alt="箴言机卡：Text API 默认排版">
+  <img src="docs/img/pet_pat_before_after.png" width="80%" alt="摸摸屏上宠物前后对比：左边空闲状态，贴一下 NFC 后右边变成开心状态">
 </p>
 
-宠物卡的六个状态对应真实语义，而非任意选取的表情：
+其余卡片一览（图中数据均为虚构演示内容）：
 
-<p align="center">
-  <img src="docs/img/pet_states.png" width="90%" alt="宠物六态网格：睡着/空闲/工作中/等待批准/里程碑庆祝/被摸摸">
-</p>
-
-跟 Claude 说一句话，屏幕上就会多一行记录或一次提醒，不需要打开手机或贴 NFC：
-
-<p align="center">
-  <img src="docs/img/agent_board_hero.png" width="45%" alt="状态板卡：跟 Claude 说的话变成带时间戳的多行记录">
-  <img src="docs/img/oracle_review_hero.png" width="45%" alt="应期复盘卡：几天前问的问题，到期自动提醒回看应验了没有">
-</p>
-<p align="center">
-  <img src="docs/img/pomodoro_hero.png" width="45%" alt="番茄钟卡：专注块起止时刻，不走秒">
-  <img src="docs/img/wallpaper_hero.png" width="45%" alt="换壁纸卡：默认图是云南甲马版画「招财进宝」，也可以上传自己的图片">
-</p>
-
-Claude Code 状态灯用横向进度条展示配额用量，不是纯文字堆数字（图中百分比为演示数据）：
-
-<p align="center">
-  <img src="docs/img/status_hero.png" width="45%" alt="状态灯卡：5h/7d 配额用量条形图，配额不可用时退回更大字号的今日 token 数字展示">
-</p>
+<table align="center">
+<tr>
+<td align="center" width="20%"><img src="docs/img/pet_hero.png" width="100%" alt="屏上宠物卡"><br><sub>屏上宠物<br>活动信号驱动状态</sub></td>
+<td align="center" width="20%"><img src="docs/img/pet_states.png" width="100%" alt="宠物六态网格"><br><sub>宠物六态<br>睡着/空闲/工作/等待批准/庆祝/摸摸</sub></td>
+<td align="center" width="20%"><img src="docs/img/liuyao_hero.png" width="100%" alt="摇卦卡"><br><sub>摇卦<br>六爻爻线+卦名</sub></td>
+<td align="center" width="20%"><img src="docs/img/qimen_hero.png" width="100%" alt="奇门遁甲卡"><br><sub>奇门遁甲<br>九宫格排盘</sub></td>
+<td align="center" width="20%"><img src="docs/img/proverb_hero.png" width="100%" alt="箴言机卡"><br><sub>箴言机<br>Text API 排版</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/img/agent_board_hero.png" width="100%" alt="状态板卡"><br><sub>状态板<br>说一句话变一行记录</sub></td>
+<td align="center"><img src="docs/img/oracle_review_hero.png" width="100%" alt="应期复盘卡"><br><sub>应期复盘<br>到期提醒回看应验没</sub></td>
+<td align="center"><img src="docs/img/pomodoro_hero.png" width="100%" alt="番茄钟卡"><br><sub>番茄钟<br>专注块起止时刻</sub></td>
+<td align="center"><img src="docs/img/wallpaper_hero.png" width="100%" alt="换壁纸卡"><br><sub>换壁纸<br>上传图片或用默认版画</sub></td>
+<td align="center"><img src="docs/img/status_hero.png" width="100%" alt="状态灯卡"><br><sub>状态灯<br>配额横向进度条</sub></td>
+</tr>
+</table>
 
 ## 快速开始
 
