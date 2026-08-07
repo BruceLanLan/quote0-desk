@@ -241,15 +241,43 @@ python3 server.py             # 常驻运行，调度线程随 Flask 一起启�
 
 **Studio 层（未完成，已定位改动点）**：Hermes Studio 的 Cron 任务对话框（`create-job-dialog.tsx` / `edit-job-dialog.tsx`）有一个硬编码的投递渠道列表 `DELIVERY_OPTIONS = ['local', 'telegram', 'discord']`——quote0 网关插件已经支持 `deliver=quote0`，但 Studio 界面上选不出这个选项，只能靠命令行手动建 cron job。补上需要往这两个文件的数组里各加一行 `'quote0'`，是一处集中、可核实的改动，不影响其它平台的行为。这个改动没有提交——向 [JPeetz/Hermes-Studio](https://github.com/JPeetz/Hermes-Studio) 开 PR/issue 属于对外发布行为，尚未执行。
 
-## 开发状态
+## 文档索引
 
-M0（真机契约验证）至 M6（调度器 + 隐私审查）已完成，NFC 反馈闭环（本项目的核心假设）已通过真机验证；事件驱动推送（时效性内容无需等待自动轮换即可送达）、对话式写入（状态板 / 应期复盘）同样已通过真机验证。完整记录见 [`docs/DEVICE-FACTS.md`](docs/DEVICE-FACTS.md)。
+这个 README 只讲"怎么用"。设备接口细节、每一条实测结论的证据、新卡怎么接，都在这里：
 
-后续计划：
+| 文档 | 内容 |
+|---|---|
+| [`docs/DEVICE-FACTS.md`](docs/DEVICE-FACTS.md) | Quote/0 官方 API 的实测事实——槽位模型、休眠窗口行为、NFC 闭环验证记录，"已确认" 和 "待验证" 分开标注，不是推测 |
+| [`docs/ADDING-A-CARD.md`](docs/ADDING-A-CARD.md) | 加一张新内容卡要改哪几个文件，含检查清单 |
 
-- 验证 `shortcuts://` scheme 能否通过 NFC 直接触发 iOS 快捷指令
-- 提交 Quote/0 官方 co_create showcase
-- 是否向 Hermes Studio 提交 Cron 投递渠道的 PR/issue（诊断已完成，见上，等待决定）
+## 项目状态
+
+- ✅ M0 真机契约验证——槽位模型、休眠窗口、NFC link 语义，全部有实测证据
+- ✅ M1 骨架——`dot.py` 客户端 + 最简卡打通推送
+- ✅ M2 NFC 闭环最小可用——贴一下触发动作、新内容推回屏幕，本项目最大的风险点
+- ✅ M3 移植摇卦 / 奇门遁甲 / 签筒（296×152 横屏重排）
+- ✅ M4 Canvas/Text 卡批量——日课、状态灯、箴言机、时间胶囊、实盘信标
+- ✅ M5 屏上宠物——ASCII 造型移植自官方 claude-desktop-buddy，接入 buddy-bridge 实时信号
+- ✅ M6 调度器完善 + 隐私审查——事件驱动推送优先队列、专注块/应期复盘等时效性内容不被自动轮换埋掉
+- ✅ 对话式写入通道——状态板 / 应期复盘，MCP 工具参数必填、信息不全 Claude 会主动追问
+- ✅ Hermes Agent 网关层集成——`hermes-quote0` 插件，cron 投递真机验证通过
+- ✅ 控制台重做——15 张卡按用途分组，NFC 交互路由表、排障指南补齐
+- ⬜ Hermes Studio 层集成——Cron 投递渠道的改动点已定位，diff 已备好，未提交
+- ⬜ `shortcuts://` scheme 能否用 NFC 直接触发 iOS 快捷指令，未测试
+- ⬜ Quote/0 官方 co_create showcase，未提交
+
+## 定位：只用官方能力，不做逆向
+
+**本项目只使用 Quote/0 官方已经公开的 REST API，不逆向、不刷机、不越权。**
+
+- ✅ 用：官方的 Text API / Image API 推送接口、官方的设备状态与循环任务查询接口
+- ❌ 不做：逆向设备私有协议、dump 或改写固件、绕过 Dot 云端鉴权、动 Dot App 里已有的 GENERAL 内容项（天气/新闻等，只增不改）
+
+设备的槽位限制、休眠窗口、原生轮转这些约束，都是在官方能力范围内接受它、绕开它（比如用 `image.key` 直连 CDN 做休眠期间的像素核对），不是靠破解解除它。
+
+## 免责声明
+
+本项目与 MindReset / Dot 官方团队无任何关联，纯属个人对自有设备的功能扩展和自用工具。所有交互都通过官方对外公开的云端 REST API 完成，不涉及破解设备固件、绕过身份鉴权或访问他人设备。
 
 ## License
 
