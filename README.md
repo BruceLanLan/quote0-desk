@@ -239,7 +239,7 @@ python3 server.py             # 常驻运行，调度线程随 Flask 一起启�
 
 **网关层（已完成，真机验证过）**：[`hermes-quote0/`](hermes-quote0/) 是 Hermes Agent 的一个平台插件，把 agent 消息或 cron job 结果直接投递到 Quote/0 屏幕，机制与 Telegram/Discord 等官方投递渠道一致，Hermes 核心代码无需改动。用法见 [`hermes-quote0/README.md`](hermes-quote0/README.md)。完整链路已完成真机验证：安装插件后，一个 `deliver=quote0` 的 cron job 能将结果端到端送达屏幕（对应「Hermes 消息」卡）。屏幕固定带 `Hermes Agent` 签名，不接受 agent 自行指定 NFC 链接——这是防 prompt injection 的硬约束：agent 生成的内容不可信任，不能让其决定物理贴一下之后打开的目标地址。该集成为可选项，未安装 Hermes 时「Hermes 消息」「Hermes 任务台」两张卡为空，不影响其余功能。
 
-**Studio 层（未完成，已定位改动点）**：Hermes Studio 的 Cron 任务对话框（`create-job-dialog.tsx` / `edit-job-dialog.tsx`）有一个硬编码的投递渠道列表 `DELIVERY_OPTIONS = ['local', 'telegram', 'discord']`——quote0 网关插件已经支持 `deliver=quote0`，但 Studio 界面上选不出这个选项，只能靠命令行手动建 cron job。补上需要往这两个文件的数组里各加一行 `'quote0'`，是一处集中、可核实的改动，不影响其它平台的行为。这个改动没有提交——向 [JPeetz/Hermes-Studio](https://github.com/JPeetz/Hermes-Studio) 开 PR/issue 属于对外发布行为，尚未执行。
+**Studio 层（改动已定位，暂不提交 PR）**：Hermes Studio 的 Cron 任务对话框（`create-job-dialog.tsx` / `edit-job-dialog.tsx`）有一个硬编码的投递渠道列表 `DELIVERY_OPTIONS = ['local', 'telegram', 'discord']`——quote0 网关插件已经支持 `deliver=quote0`，但 Studio 界面上选不出这个选项，只能靠命令行手动建 cron job。补上需要往这两个文件的数组里各加一行 `'quote0'`，是一处集中、可核实的改动，不影响其它平台的行为，diff 已经备好。目前的计划是先自己长期用起来，确认这条集成本身好用、稳定之后再向 [JPeetz/Hermes-Studio](https://github.com/JPeetz/Hermes-Studio) 提 PR，不急着现在推给官方。
 
 ## 文档索引
 
@@ -262,7 +262,7 @@ python3 server.py             # 常驻运行，调度线程随 Flask 一起启�
 - ✅ 对话式写入通道——状态板 / 应期复盘，MCP 工具参数必填、信息不全 Claude 会主动追问
 - ✅ Hermes Agent 网关层集成——`hermes-quote0` 插件，cron 投递真机验证通过
 - ✅ 控制台重做——15 张卡按用途分组，NFC 交互路由表、排障指南补齐
-- ⬜ Hermes Studio 层集成——Cron 投递渠道的改动点已定位，diff 已备好，未提交
+- ⬜ Hermes Studio 层集成——Cron 投递渠道的改动点已定位，diff 已备好；计划先自用验证一段时间，成熟后再提 PR
 - ⬜ `shortcuts://` scheme 能否用 NFC 直接触发 iOS 快捷指令，未测试
 - ⬜ Quote/0 官方 co_create showcase，未提交
 
