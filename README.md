@@ -1,5 +1,7 @@
 # quote0-desk
 
+**中文** | [English](README.en.md)
+
 **把 [Quote/0](https://dot.mindreset.tech/developers) 墨水屏从单向显示面板改造成支持 NFC 交互的桌面装置。**
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
