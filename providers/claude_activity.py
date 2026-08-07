@@ -6,11 +6,18 @@ token 统计部分移植自 pocket-prophet-dashboard/providers/ccusage.py（同�
 一个短窗口内"当代理指标，因为装 hook 才能拿到真正的 session 生命周期
 事件，而状态灯只是"看一眼"，没必要为了这张卡去碰 Claude Code 的 hooks
 配置（那是全局设置，跟这个项目的范围不对等）。
+
+配置目录走 `providers/claude_home.py` 的多目录发现——一台机器如果同时
+装了多个 profile（`~/.claude` 默认、`~/.claude-opus` 等），只扫其中一个
+硬编码的目录会在另一个目录才是当下活跃会话时显示"今日 0 tokens"，
+看起来像没数据，其实是找错了地方。
 """
 import glob
 import json
 import os
 from datetime import datetime, timedelta, timezone
+
+from providers.claude_home import candidate_dirs
 
 ACTIVE_WINDOW_SECONDS = 180  # 转录文件在这个窗口内被写过，就认为"活跃中"
 
@@ -23,8 +30,11 @@ PRICING = {
 DEFAULT_PRICING = PRICING["sonnet"]
 
 
-def _config_dir() -> str:
-    return os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
+def _transcript_paths() -> list[str]:
+    paths = []
+    for d in candidate_dirs():
+        paths.extend(glob.glob(os.path.join(d, "projects", "**", "*.jsonl"), recursive=True))
+    return paths
 
 
 def _pricing_for(model: str) -> dict:
@@ -67,8 +77,7 @@ def _project_name_from_file(path: str) -> str:
 
 def scan() -> dict:
     """返回今日 token 统计 + 最近活跃项目 + 是否活跃中。"""
-    pattern = os.path.join(_config_dir(), "projects", "**", "*.jsonl")
-    paths = glob.glob(pattern, recursive=True)
+    paths = _transcript_paths()
 
     now_ts = datetime.now(timezone.utc)
     today_start = now_ts.astimezone().replace(hour=0, minute=0, second=0, microsecond=0)

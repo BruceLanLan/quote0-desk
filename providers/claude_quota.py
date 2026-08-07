@@ -1,4 +1,7 @@
-"""Claude 账号配额（5 小时/7 天用量百分比），只读 `~/.claude/.credentials.json`。
+"""Claude 账号配额（5 小时/7 天用量百分比），只读 `.credentials.json`——
+走 `providers/claude_home.py` 的多目录发现，依次试每个 profile 目录，
+不再硬编码只认 `~/.claude`（同一台机器上如果还有 `~/.claude-opus` 这类
+另开的 profile，各自的登录状态是独立的）。
 
 参考社区项目 `zellux/quote0-token-usage-dash` 的做法：Claude Code 登录后会
 把 OAuth token 存在这个文件里，`GET https://api.anthropic.com/api/oauth/usage`
@@ -27,25 +30,34 @@ import time
 
 import requests
 
-CREDENTIALS_PATH = os.path.expanduser("~/.claude/.credentials.json")
+from providers.claude_home import candidate_dirs
+
 USAGE_ENDPOINT = "https://api.anthropic.com/api/oauth/usage"
 TIMEOUT = 10
 
 
 def _load_access_token() -> str | None:
-    if not os.path.exists(CREDENTIALS_PATH):
-        return None
-    try:
-        with open(CREDENTIALS_PATH) as f:
-            data = json.load(f)
-        oauth = data["claudeAiOauth"]
-    except (json.JSONDecodeError, OSError, KeyError):
-        return None
+    """多个 profile 目录（见 `providers/claude_home.py`）依次试，用第一个
+    存在且没过期的凭据——不同 profile 各自登录的账号可能不是同一个，
+    只认硬编码的 `~/.claude` 会在真正在用的是另一个目录时报"未配置"。"""
+    for d in candidate_dirs():
+        path = os.path.join(d, ".credentials.json")
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path) as f:
+                data = json.load(f)
+            oauth = data["claudeAiOauth"]
+        except (json.JSONDecodeError, OSError, KeyError):
+            continue
 
-    expires_at = oauth.get("expiresAt")
-    if expires_at and time.time() * 1000 > float(expires_at):
-        return None  # 已过期，不刷新，直接报不可用
-    return oauth.get("accessToken")
+        expires_at = oauth.get("expiresAt")
+        if expires_at and time.time() * 1000 > float(expires_at):
+            continue  # 已过期，不刷新，直接跳过试下一个
+        token = oauth.get("accessToken")
+        if token:
+            return token
+    return None
 
 
 def _window(raw: dict | None) -> dict | None:

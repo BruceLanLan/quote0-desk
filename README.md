@@ -172,7 +172,7 @@ bash scripts/uninstall_launchd.sh
 | 摇卦 | `push liuyao` | `secrets` 真随机抛铜钱起卦 |
 | 奇门遁甲 | `push qimen` | 九宫格排盘 |
 | 签筒 | `push qiantong` | 摇卦/奇门二选一，NFC 触发版 |
-| Claude Code 状态灯 | `push status` | 优先显示真实账号配额（5h/7d 用量百分比），不可用时退回本地转录文件估算的今日 token/成本；活跃指示优先读 buddy-bridge（见下），不可用时退回转录文件 mtime |
+| Claude Code 状态灯 | `push status` | 优先显示真实账号配额（5h/7d 用量百分比），不可用时退回本地转录文件估算的今日 token/成本；活跃指示优先读 buddy-bridge（见下），不可用时退回转录文件 mtime。转录文件和登录凭据的扫描路径走 `providers/claude_home.py` 的多 profile 目录发现（`~/.claude`、`~/.claude-opus` 等都会扫），同一台机器装了多个 Claude Code profile 时不会因为扫错目录而显示"今日 0 tokens" |
 | 屏上宠物 | `push pet` | ASCII 造型和状态语义移植自官方 [anthropics/claude-desktop-buddy](https://github.com/anthropics/claude-desktop-buddy)（MIT）：sleep/idle/busy/attention/celebrate/heart，信号优先用 buddy-bridge 的实时 running/waiting，不可用时退回扫 commit 时间；NFC 贴一下触发摸摸（heart）；`waiting` 持续超过 5 分钟会从"有个操作在等你批准"升级为点名具体工具（需要 buddy-bridge） |
 | 今日一件事 | `push todo` / `set-todo "..."` | 单条每日承诺，NFC 打卡 |
 | 番茄钟 | `push pomodoro` | 贴一下开始一个专注块（屏幕显示起止时刻，不走秒），进行中不会被自动轮换覆盖，到点自动推送通知，不依赖自动轮换是否开启 |
