@@ -189,7 +189,7 @@ bash scripts/uninstall_launchd.sh
 | 实盘信标 | `push beacon` | 只读展示交易策略持仓 + 选股信号，不导入对应项目的代码/密钥 |
 | Hermes 任务台 | `push hermes` | 只读展示本机 [hermes-agent](https://github.com/NousResearch/hermes-agent) gateway 的定时任务列表；可选集成，未安装 Hermes 或 gateway 未启动时显示"未接入" |
 | Hermes 消息 | 见下方「Hermes Agent 集成」 | 展示 Hermes agent 主动推送的最新一条消息（agent 消息或 cron job 结果），被动接收，不主动轮询 |
-| 换壁纸 | `push wallpaper` | 控制台上传任意图片，服务端按"覆盖"策略缩放裁切到 296×152 后做 Floyd-Steinberg 黑白抖动，不是简单拉伸变形；没上传过时显示默认图——云南甲马版画「招财进宝」（[来源](https://commons.wikimedia.org/wiki/File:%E4%BA%91%E5%8D%97%E7%94%B2%E9%A9%AC-%E6%8B%9B%E8%B4%A2%E8%BF%9B%E5%AE%9D.jpg)，Pygathrix 摄，CC BY-SA 4.0，见 `render/wallpaper.py` 顶部完整署名），整幅缩放居中、两侧留白画装饰性铜钱，不裁切原图构图 |
+| 换壁纸 | `push wallpaper` | 控制台上传任意图片，服务端按"覆盖"策略缩放裁切到 296×152 后做 Floyd-Steinberg 黑白抖动，不是简单拉伸变形；没上传过时显示默认图——两张云南甲马版画「招财进宝」+「财神」等高拼接（单张是竖构图跟横屏比例差得远，两张拼起来更接近横屏比例，来源见 [1](https://commons.wikimedia.org/wiki/File:%E4%BA%91%E5%8D%97%E7%94%B2%E9%A9%AC-%E6%8B%9B%E8%B4%A2%E8%BF%9B%E5%AE%9D.jpg)/[2](https://commons.wikimedia.org/wiki/File:%E4%BA%91%E5%8D%97%E7%94%B2%E9%A9%AC-%E8%B4%A2%E7%A5%9E.jpg)，Pygathrix 摄，CC BY-SA 4.0，完整署名见 `render/wallpaper.py` 头部注释） |
 
 新增内容卡的接入方式见 [`docs/ADDING-A-CARD.md`](docs/ADDING-A-CARD.md)。
 
