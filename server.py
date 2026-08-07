@@ -23,7 +23,7 @@ from flask import Flask, jsonify, render_template, request
 import config
 import dot
 import scheduler
-from providers import agent_board, hermes_inbox, oracle, pomodoro
+from providers import agent_board, hermes_inbox, oracle, pomodoro, wallpaper
 from providers.todo import set_task, toggle_done
 from push import push_card, render_card
 from render import pet_sprites
@@ -42,6 +42,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 log = logging.getLogger("quote0-desk")
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # 跟 providers/wallpaper.py 的 MAX_UPLOAD_BYTES 对齐，Flask 层先挡一道，不等读完整个超大文件到内存才发现太大
 
 # 控制台"全部内容卡"列表要用的中文名——README 的表格是给人读的 markdown，
 # 这里是给前端渲染下拉/按钮用的同一份信息，两处手动保持一致（卡片本身
@@ -63,6 +64,7 @@ CARDS = {
     "pomodoro": "番茄钟",
     "agent_board": "状态板",
     "oracle_review": "应期复盘",
+    "wallpaper": "换壁纸",
 }
 
 
@@ -170,6 +172,39 @@ def api_todo():
     set_task(task)
     result = _safe(push_card, "todo")
     return jsonify({"ok": True, "push": result})
+
+
+@app.route("/api/wallpaper/upload", methods=["POST"])
+def api_wallpaper_upload():
+    """控制台「换壁纸」用，multipart 文件上传。转换（缩放裁切 + 黑白抖动）
+    和存盘都在 `providers/wallpaper.py`，这里只做"有没有传文件"的校验，
+    转换失败/格式不对的错误信息直接透传给前端，不是裸的 500。上传成功后
+    顺手推一次，跟 `/api/todo` 同一个"设置即所得"的习惯。
+    """
+    file = request.files.get("file")
+    if not file or not file.filename:
+        return jsonify({"ok": False, "hint": "没有收到文件"}), 400
+    result = wallpaper.save_upload(file.read())
+    if not result.get("ok"):
+        return jsonify(result), 400
+    push_result = _safe(push_card, "wallpaper")
+    log.info("wallpaper_upload push=%s", push_result)
+    return jsonify({"ok": True, "push": push_result})
+
+
+@app.route("/api/wallpaper/reset", methods=["POST"])
+def api_wallpaper_reset():
+    """删掉自定义壁纸，恢复默认的「八方来财」图，顺手推一次。"""
+    wallpaper.reset()
+    result = _safe(push_card, "wallpaper")
+    log.info("wallpaper_reset push=%s", result)
+    return jsonify({"ok": True, "push": result})
+
+
+@app.route("/api/wallpaper/status")
+def api_wallpaper_status():
+    """只读——控制台用来显示"当前是自定义壁纸还是默认图"。"""
+    return jsonify({"has_custom": wallpaper.has_custom()})
 
 
 @app.route("/api/hermes_inbox", methods=["POST"])

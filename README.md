@@ -30,7 +30,7 @@ MindReset 官方生态里已有 20 多个第三方项目（Home Assistant 集成
 
 - **NFC 闭环**：贴一下手机，服务器执行动作，新内容立刻推回屏幕，不是"扫码看详情"式的单向跳转。
 - **网页控制台**：`http://localhost:5252` 提供设备状态、每张卡的预览/推送、自动轮换开关，不需要记命令行参数。
-- **15 张内容卡**：屏上宠物、六爻摇卦、奇门遁甲、签筒、日课、桌面箴言机、今日打卡、番茄钟、状态板、应期复盘、时间胶囊、实盘信标、Hermes 任务台、Hermes 消息、Claude Code 用量状态灯。
+- **16 张内容卡**：屏上宠物、六爻摇卦、奇门遁甲、签筒、日课、桌面箴言机、今日打卡、番茄钟、状态板、应期复盘、时间胶囊、实盘信标、Hermes 任务台、Hermes 消息、Claude Code 用量状态灯、换壁纸（自己上传图片）。
 - **宠物状态对齐官方语义**：ASCII 造型和状态机移植自 Anthropic 官方 [claude-desktop-buddy](https://github.com/anthropics/claude-desktop-buddy)，接入 [buddy-bridge](#可选集成buddy-bridge) 后由真实的 Claude Code 会话信号驱动。
 - **后台常驻，隧道自愈**：`server.py` 和 NFC 公网隧道注册为 macOS LaunchAgent，进程异常退出自动重启，隧道地址变化自动写回配置。
 - **MCP 工具**：`draw_hexagram()`、`pat_pet()`、`set_today_task(...)` 等具体卡片工具，而非通用文本/图片透传接口。
@@ -67,6 +67,7 @@ MindReset 官方生态里已有 20 多个第三方项目（Home Assistant 集成
 </p>
 <p align="center">
   <img src="docs/img/pomodoro_hero.png" width="45%" alt="番茄钟卡：专注块起止时刻，不走秒">
+  <img src="docs/img/wallpaper_hero.png" width="45%" alt="换壁纸卡：默认图是云南甲马版画「招财进宝」，也可以上传自己的图片">
 </p>
 
 ## 快速开始
@@ -90,7 +91,7 @@ python3 cli.py set-todo "今天要做的事"
 
 ## 本地控制台
 
-`python3 server.py` 启动后，打开 `http://localhost:5252` 即为网页控制台：设备在线状态、当前屏幕实际显示内容、每张卡的"预览"（执行一次 `build()` 但不推送）与"推送"按钮、自动轮换的布防状态均在此页面。15 张内容卡按用途分组显示（互动卡片 / 记录与提醒 / 信息展示 / Hermes 集成），每张卡带一句功能说明，不是一份不作区分的平铺列表。`/settings` 为配置页，用于修改 NFC 回调地址、开关自动轮换、勾选参与轮换的卡，无需手动编辑 `config.json` 或拼接 `curl` 命令。
+`python3 server.py` 启动后，打开 `http://localhost:5252` 即为网页控制台：设备在线状态、当前屏幕实际显示内容、每张卡的"预览"（执行一次 `build()` 但不推送）与"推送"按钮、自动轮换的布防状态均在此页面。16 张内容卡按用途分组显示（互动卡片 / 记录与提醒 / 信息展示 / Hermes 集成 / 自定义），每张卡带一句功能说明，不是一份不作区分的平铺列表。`/settings` 为配置页，用于修改 NFC 回调地址、开关自动轮换、勾选参与轮换的卡，无需手动编辑 `config.json` 或拼接 `curl` 命令。
 
 <p align="center">
   <img src="docs/img/dashboard.png" width="45%" alt="本地控制台首页：设备状态、当前屏幕内容、按用途分组的内容卡列表">
@@ -182,6 +183,7 @@ bash scripts/uninstall_launchd.sh
 | 实盘信标 | `push beacon` | 只读展示交易策略持仓 + 选股信号，不导入对应项目的代码/密钥 |
 | Hermes 任务台 | `push hermes` | 只读展示本机 [hermes-agent](https://github.com/NousResearch/hermes-agent) gateway 的定时任务列表；可选集成，未安装 Hermes 或 gateway 未启动时显示"未接入" |
 | Hermes 消息 | 见下方「Hermes Agent 集成」 | 展示 Hermes agent 主动推送的最新一条消息（agent 消息或 cron job 结果），被动接收，不主动轮询 |
+| 换壁纸 | `push wallpaper` | 控制台上传任意图片，服务端按"覆盖"策略缩放裁切到 296×152 后做 Floyd-Steinberg 黑白抖动，不是简单拉伸变形；没上传过时显示默认图——云南甲马版画「招财进宝」（[来源](https://commons.wikimedia.org/wiki/File:%E4%BA%91%E5%8D%97%E7%94%B2%E9%A9%AC-%E6%8B%9B%E8%B4%A2%E8%BF%9B%E5%AE%9D.jpg)，Pygathrix 摄，CC BY-SA 4.0，见 `render/wallpaper.py` 顶部完整署名），整幅缩放居中、两侧留白画装饰性铜钱，不裁切原图构图 |
 
 新增内容卡的接入方式见 [`docs/ADDING-A-CARD.md`](docs/ADDING-A-CARD.md)。
 
@@ -262,6 +264,7 @@ python3 server.py             # 常驻运行，调度线程随 Flask 一起启�
 - ✅ 对话式写入通道——状态板 / 应期复盘，MCP 工具参数必填、信息不全 Claude 会主动追问
 - ✅ Hermes Agent 网关层集成——`hermes-quote0` 插件，cron 投递真机验证通过
 - ✅ 控制台重做——15 张卡按用途分组，NFC 交互路由表、排障指南补齐
+- ✅ 换壁纸——上传图片自动缩放裁切+黑白抖动，默认图是真实的传统版画（CC BY-SA 4.0，见「全部内容卡」表格）
 - ⬜ Hermes Studio 层集成——Cron 投递渠道的改动点已定位，diff 已备好；计划先自用验证一段时间，成熟后再提 PR
 - ⬜ `shortcuts://` scheme 能否用 NFC 直接触发 iOS 快捷指令，未测试
 - ⬜ Quote/0 官方 co_create showcase，未提交

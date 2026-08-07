@@ -44,6 +44,10 @@ h1 a{margin-left:auto;font-size:14px;color:#6e6e73;text-decoration:none}
 .pushmsg.err{background:#fdecea;color:#d70015}
 .todorow{display:flex;gap:6px;margin-top:8px}
 .todorow input{flex:1;border:1px solid #e3ded5;border-radius:8px;background:#fbfaf7;color:#1d1d1f;font-size:13px;padding:8px}
+.wallrow{margin-top:8px}
+.wallrow .filerow{display:flex;gap:6px;align-items:center}
+.wallrow input[type=file]{flex:1;font-size:12px;color:#6e6e73}
+.wallrow .wallstate{font-size:12px;color:#a39a89;margin-top:6px}
 </style>
 </head>
 <body>
@@ -80,12 +84,14 @@ const CARD_META = {
   beacon:        {icon: '📊', sub: '只读展示交易持仓 + 选股信号'},
   hermes:        {icon: '🔌', sub: '只读展示 hermes-agent 定时任务'},
   hermes_inbox:  {icon: '📨', sub: 'Hermes agent 主动推来的最新消息'},
+  wallpaper:     {icon: '🖼️', sub: '上传一张图，转黑白抖动图推上屏'},
 };
 const CARD_GROUPS = [
   {title: '互动卡片', hint: '一键触发，也都接了 NFC 贴一下', keys: ['pet','liuyao','qimen','qiantong','proverb']},
   {title: '记录与提醒', hint: '靠对话写入或 NFC 打卡，不自己抓数据', keys: ['todo','pomodoro','agent_board','oracle_review']},
   {title: '信息展示', hint: '只读，按周期或手动刷新', keys: ['daily','status','capsule','beacon']},
   {title: 'Hermes 集成', hint: '可选，未装 Hermes 时为空', keys: ['hermes','hermes_inbox']},
+  {title: '自定义', hint: '上传自己的图片当壁纸', keys: ['wallpaper']},
 ];
 
 async function refreshStatus(){
@@ -218,11 +224,77 @@ async function setTodoAndPush(){
   }
 }
 
+async function uploadWallpaper(){
+  const input = document.getElementById('wallpaperInput');
+  const box = document.getElementById('preview-wallpaper');
+  const file = input.files[0];
+  if(!file) return;
+  box.style.display = 'block';
+  box.innerHTML = '上传并转换中…';
+  const body = new FormData();
+  body.append('file', file);
+  try{
+    const r = await fetch('/api/wallpaper/upload', {method: 'POST', body});
+    const j = await r.json();
+    if(!j.ok){
+      box.innerHTML = `<div class="pushmsg err">${j.hint || '上传失败'}</div>`;
+      return;
+    }
+    box.innerHTML = `<div class="pushmsg ok">已转换并推送到设备</div>`;
+    input.value = '';
+    refreshWallpaperState();
+  }catch(e){
+    box.innerHTML = `<div class="pushmsg err">网络错误：${e}</div>`;
+  }finally{
+    refreshStatus();
+  }
+}
+
+async function resetWallpaper(){
+  const box = document.getElementById('preview-wallpaper');
+  box.style.display = 'block';
+  box.innerHTML = '恢复默认中…';
+  try{
+    const r = await fetch('/api/wallpaper/reset', {method: 'POST'});
+    const j = await r.json();
+    box.innerHTML = j.ok
+      ? `<div class="pushmsg ok">已恢复默认壁纸并推送</div>`
+      : `<div class="pushmsg err">${j.hint || '操作失败'}</div>`;
+    refreshWallpaperState();
+  }catch(e){
+    box.innerHTML = `<div class="pushmsg err">网络错误：${e}</div>`;
+  }finally{
+    refreshStatus();
+  }
+}
+
+async function refreshWallpaperState(){
+  const el = document.getElementById('wallpaperState');
+  if(!el) return;
+  try{
+    const r = await fetch('/api/wallpaper/status');
+    const j = await r.json();
+    el.textContent = j.has_custom ? '当前：自定义壁纸' : '当前：默认「八方来财」图';
+  }catch(e){
+    el.textContent = '';
+  }
+}
+
 function renderCardRow(name, cards){
   const meta = CARD_META[name] || {icon: '📎', sub: ''};
-  const extra = name === 'todo'
-    ? `<div class="todorow"><input type="text" id="todoInput" placeholder="今天要做的事"><button class="smallbtn primary" onclick="setTodoAndPush()">设置并推送</button></div>`
-    : '';
+  let extra = '';
+  if(name === 'todo'){
+    extra = `<div class="todorow"><input type="text" id="todoInput" placeholder="今天要做的事"><button class="smallbtn primary" onclick="setTodoAndPush()">设置并推送</button></div>`;
+  } else if(name === 'wallpaper'){
+    extra = `<div class="wallrow">
+      <div class="filerow">
+        <input type="file" id="wallpaperInput" accept="image/*">
+        <button class="smallbtn primary" onclick="uploadWallpaper()">上传并推送</button>
+      </div>
+      <div class="wallstate" id="wallpaperState"></div>
+      <button class="smallbtn" style="margin-top:6px" onclick="resetWallpaper()">恢复默认图</button>
+    </div>`;
+  }
   return `
     <div class="cardrow">
       <div class="top">
@@ -255,6 +327,7 @@ async function buildCardList(){
       <div class="card">${keys.map(name => renderCardRow(name, cards)).join('')}</div>
     `;
   }).join('');
+  refreshWallpaperState();
 }
 
 buildCardList();
