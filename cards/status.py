@@ -24,34 +24,20 @@ claude_activity——buddy-bridge 的 snapshot 没有单独暴露 cwd，没必�
 配额端点是未文档化的接口，说不准哪天就变形或消失，不能让它拖垮整张卡。
 这条降级链跟上面那条完全正交：配额端点挂了不影响活跃判定，buddy-bridge
 没开也不影响配额行。
+
+**2026-08-07 从 Text API 换成 Image API**：原来这张卡是三行纯文字，配额
+百分比就是"5h 43%"这样堆数字，用户反馈"缺少可视化"——改用
+`render/status.py` 画横条进度条，配额可用时能一眼看出"还剩多少"，不可用
+时退回更大字号的数字展示（不画假进度条，没有真实上限的数字硬画一条
+"填了多少"是编造参照系）。
 """
 from __future__ import annotations
 
-from canvas.template import simple_data
 from providers import buddy as buddy_provider
 from providers.claude_activity import scan
 from providers.claude_quota import fetch as fetch_quota
-
-# 官方状态名 → 卡面措辞。跟 render/pet.py 的 STATE_LABEL 是同一套语义，
-# 只是状态灯是一行标题、不画图，说法更短。
-STATE_INDICATOR = {
-    "attention": "◉ 等你批准",
-    "busy": "● 工作中",
-    "idle": "○ 空闲",
-}
-
-
-def _quota_line(quota: dict) -> str | None:
-    if not quota.get("available"):
-        return None
-    parts = []
-    five_hour = quota.get("five_hour")
-    seven_day = quota.get("seven_day")
-    if five_hour:
-        parts.append(f"5h {five_hour['utilization']:.0f}%")
-    if seven_day:
-        parts.append(f"7d {seven_day['utilization']:.0f}%")
-    return "配额 " + " · ".join(parts) if parts else None
+from render.base import to_data_url
+from render.status import render as render_status
 
 
 def state_name(activity: dict, buddy: dict) -> str:
@@ -66,12 +52,11 @@ def state_name(activity: dict, buddy: dict) -> str:
 def build() -> dict:
     s = scan()
     buddy = buddy_provider.fetch()
-    title = STATE_INDICATOR.get(state_name(s, buddy), "○ 空闲")
-    project_line = f"项目：{s['project']}" if s["project"] else "最近无活动"
-    usage_line = (_quota_line(fetch_quota())
-                  or f"今日 {s['today_tokens']:,} tokens · 约 ${s['estimated_cost_usd']:.2f}")
-    message = f"{project_line}\n{usage_line}"
-    footer = "quote0-desk · Claude Code 状态灯"
-
-    data = simple_data(title=title, message=message, footer=footer)
-    return {"data": data, "alias": "状态灯", "link": ""}
+    img = render_status(
+        state_name(s, buddy),
+        s["project"],
+        fetch_quota(),
+        s["today_tokens"],
+        s["estimated_cost_usd"],
+    )
+    return {"png": to_data_url(img), "alias": "状态灯", "link": ""}
