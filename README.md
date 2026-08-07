@@ -179,7 +179,7 @@ bash scripts/uninstall_launchd.sh
 | 摇卦 | `push liuyao` | `secrets` 真随机抛铜钱起卦 |
 | 奇门遁甲 | `push qimen` | 九宫格排盘 |
 | 签筒 | `push qiantong` | 摇卦/奇门二选一，NFC 触发版 |
-| Claude Code 状态灯 | `push status` | 配额可用时画两条横向进度条（5h/7d 用量百分比），不可用时退回更大字号的"今日 tokens/成本"数字展示（不画没有真实上限的假进度条）；活跃指示优先读 buddy-bridge（见下），不可用时退回转录文件 mtime。转录文件和登录凭据的扫描路径走 `providers/claude_home.py` 的多 profile 目录发现（`~/.claude`、`~/.claude-opus` 等都会扫），同一台机器装了多个 Claude Code profile 时不会因为扫错目录而显示"今日 0 tokens" |
+| Claude Code 状态灯 | `push status` | 5h/7d 配额横向进度条，配额拿不到时退回"今日 tokens/成本"数字（不画假进度条）；多 profile 自动发现，细节见 [`render/status.py`](render/status.py) 头部注释 |
 | 屏上宠物 | `push pet` | ASCII 造型和状态语义移植自官方 [anthropics/claude-desktop-buddy](https://github.com/anthropics/claude-desktop-buddy)（MIT）：sleep/idle/busy/attention/celebrate/heart，信号优先用 buddy-bridge 的实时 running/waiting，不可用时退回扫 commit 时间；NFC 贴一下触发摸摸（heart）；`waiting` 持续超过 5 分钟会从"有个操作在等你批准"升级为点名具体工具（需要 buddy-bridge） |
 | 今日一件事 | `push todo` / `set-todo "..."` | 单条每日承诺，NFC 打卡 |
 | 番茄钟 | `push pomodoro` | 贴一下开始一个专注块（屏幕显示起止时刻，不走秒），进行中不会被自动轮换覆盖，到点自动推送通知，不依赖自动轮换是否开启 |
@@ -189,7 +189,7 @@ bash scripts/uninstall_launchd.sh
 | 实盘信标 | `push beacon` | 只读展示交易策略持仓 + 选股信号，不导入对应项目的代码/密钥 |
 | Hermes 任务台 | `push hermes` | 只读展示本机 [hermes-agent](https://github.com/NousResearch/hermes-agent) gateway 的定时任务列表；可选集成，未安装 Hermes 或 gateway 未启动时显示"未接入" |
 | Hermes 消息 | 见下方「Hermes Agent 集成」 | 展示 Hermes agent 主动推送的最新一条消息（agent 消息或 cron job 结果），被动接收，不主动轮询 |
-| 换壁纸 | `push wallpaper` | 控制台上传任意图片，服务端按"覆盖"策略缩放裁切到 296×152 后做 Floyd-Steinberg 黑白抖动，不是简单拉伸变形；没上传过时显示默认图——两张云南甲马版画「招财进宝」+「财神」等高拼接（单张是竖构图跟横屏比例差得远，两张拼起来更接近横屏比例，来源见 [1](https://commons.wikimedia.org/wiki/File:%E4%BA%91%E5%8D%97%E7%94%B2%E9%A9%AC-%E6%8B%9B%E8%B4%A2%E8%BF%9B%E5%AE%9D.jpg)/[2](https://commons.wikimedia.org/wiki/File:%E4%BA%91%E5%8D%97%E7%94%B2%E9%A9%AC-%E8%B4%A2%E7%A5%9E.jpg)，Pygathrix 摄，CC BY-SA 4.0，完整署名见 `render/wallpaper.py` 头部注释） |
+| 换壁纸 | `push wallpaper` | 控制台上传任意图片，服务端"覆盖"缩放裁切+黑白抖动；默认图是两张云南甲马版画拼接（CC BY-SA 4.0，来源与署名见 [`render/wallpaper.py`](render/wallpaper.py) 头部注释） |
 
 新增内容卡的接入方式见 [`docs/ADDING-A-CARD.md`](docs/ADDING-A-CARD.md)。
 
@@ -269,7 +269,7 @@ python3 server.py             # 常驻运行，调度线程随 Flask 一起启�
 - ✅ M6 调度器完善 + 隐私审查——事件驱动推送优先队列、专注块/应期复盘等时效性内容不被自动轮换埋掉
 - ✅ 对话式写入通道——状态板 / 应期复盘，MCP 工具参数必填、信息不全 Claude 会主动追问
 - ✅ Hermes Agent 网关层集成——`hermes-quote0` 插件，cron 投递真机验证通过
-- ✅ 控制台重做——15 张卡按用途分组，NFC 交互路由表、排障指南补齐
+- ✅ 控制台重做——16 张卡按用途分组，NFC 交互路由表、排障指南补齐
 - ✅ 换壁纸——上传图片自动缩放裁切+黑白抖动，默认图是真实的传统版画（CC BY-SA 4.0，见「全部内容卡」表格）
 - ⬜ Hermes Studio 层集成——Cron 投递渠道的改动点已定位，diff 已备好；计划先自用验证一段时间，成熟后再提 PR
 - ⬜ `shortcuts://` scheme 能否用 NFC 直接触发 iOS 快捷指令，未测试
