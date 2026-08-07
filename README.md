@@ -6,7 +6,13 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](requirements.txt)
 [![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](scripts/install_launchd.sh)
 
-一个跑在本地的 Python 服务，把自定义内容卡推到 Quote/0 墨水屏上，并通过 NFC 提供双向交互。
+一个跑在本地的 Python 服务，把自定义内容卡推到 Quote/0 墨水屏上：**屏上宠物**、**六爻摇卦**、**奇门遁甲**、**桌面箴言机**，以及跟 Claude 对话直接写屏的**状态板**和**应期复盘**。全部通过 NFC 双向交互——贴一下手机，服务器执行动作，新内容立即推回屏幕，不是"推上去就结束"的单向面板。
+
+<p align="center">
+<img src="docs/img/pet.png" width="130"> <img src="docs/img/liuyao.png" width="130"> <img src="docs/img/qimen.png" width="130"> <img src="docs/img/proverb.png" width="130"> <img src="docs/img/agent_board.png" width="130"> <img src="docs/img/oracle_review.png" width="130">
+</p>
+
+---
 
 MindReset 官方生态里已有 20 多个第三方项目（Home Assistant 集成、用量看板、MCP server 等），基本都是单向数据面板：内容推上去就结束了。这个项目的差异化是把设备自带的 NFC 也用了起来，构成一个完整闭环：贴一下手机 → 打开这张卡对应的回调地址 → 服务器执行一个动作（喂宠物、抽一签、打卡、翻下一句箴言）→ 新内容立即推回屏幕。
 
